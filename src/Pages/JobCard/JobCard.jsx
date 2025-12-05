@@ -21,6 +21,7 @@ const JobCard = () => {
   const itemsPerPage = 10;
 
   useEffect(() => {
+
     const fetchData = async () => {
       const querySnapshot = await getDocs(collection(db, "ordersTest"));
       const list = [];
