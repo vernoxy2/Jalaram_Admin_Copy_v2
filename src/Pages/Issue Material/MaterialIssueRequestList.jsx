@@ -1,40 +1,83 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FiSearch } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../../firebase";
 
 const MaterialIssueRequestList = () => {
   const navigate = useNavigate();
-  // Dummy Data
-  const [data] = useState([
-    {
-      id: 1,
-      jobCardNo: "JC-001",
-      jobName: "Visiting Card Printing",
-      requestDate: "2025-01-10",
-      requestType: "WIP",
-      companyName: "Sun Paper",
-      requiredMaterial: "1000",
-    },
-    {
-      id: 2,
-      jobCardNo: "JC-002",
-      jobName: "Brochure Design",
-      requestDate: "2025-01-12",
-      requestType: "Additional",
-      companyName: "Krutika",
-      requiredMaterial: "2000",
-    },
-    {
-      id: 3,
-      jobCardNo: "JC-003",
-      jobName: "Sticker Labels",
-      requestDate: "2025-01-15",
-      requestType: "Additional",
-      companyName: "Capri",
-      requiredMaterial: "1000",
-    },
-  ]);
+
+  const [data, setData] = useState([]);
+  const [search, setSearch] = useState("");
+
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // 🔥 FETCH MATERIAL REQUEST DATA
+  useEffect(() => {
+    const fetchData = async () => {
+      const snapshot = await getDocs(collection(db, "materialRequest"));
+      const list = [];
+
+      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+
+      // Sort by requestDate (latest first)
+      list.sort((a, b) => {
+        const dateA = a.requestDate?.seconds
+          ? new Date(a.requestDate.seconds * 1000)
+          : new Date(a.requestDate);
+
+        const dateB = b.requestDate?.seconds
+          ? new Date(b.requestDate.seconds * 1000)
+          : new Date(b.requestDate);
+
+        return dateB - dateA;
+      });
+
+      setData(list);
+    };
+
+    fetchData();
+  }, []);
+
+  // 🔍 SEARCH + DATE RANGE FILTER
+  const filteredItems = data.filter((item) => {
+    const formattedDate = item.requestDate
+      ? new Date(item.requestDate.seconds * 1000).toISOString().split("T")[0]
+      : "";
+
+    const s = search.toLowerCase();
+
+    // search filter
+    const matchesSearch =
+      item.jobCardNo?.toLowerCase().includes(s) ||
+      item.jobName?.toLowerCase().includes(s) ||
+      item.companyName?.toLowerCase().includes(s) ||
+      formattedDate.includes(s);
+
+    if (!matchesSearch) return false;
+
+    // date filters
+    if (fromDate && formattedDate < fromDate) return false;
+    if (toDate && formattedDate > toDate) return false;
+
+    return true;
+  });
+
+  // 🔢 PAGINATION
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const indexOfLast = currentPage * itemsPerPage;
+  const indexOfFirst = indexOfLast - itemsPerPage;
+
+  const currentItems = filteredItems.slice(indexOfFirst, indexOfLast);
+
+  const goToPage = (page) => {
+    if (page > 0 && page <= totalPages) setCurrentPage(page);
+  };
 
   return (
     <div className="space-y-5">
@@ -48,8 +91,13 @@ const MaterialIssueRequestList = () => {
           type="text"
           placeholder="Search"
           className="border border-black/20 rounded-3xl w-full p-3 pr-10 text-sm"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCurrentPage(1);
+          }}
         />
-        <FiSearch  className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        <FiSearch className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
       </div>
 
       {/* Date Filter */}
@@ -59,6 +107,11 @@ const MaterialIssueRequestList = () => {
           <input
             type="date"
             className="border border-black/20 rounded-2xl p-3 w-full"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
@@ -67,6 +120,11 @@ const MaterialIssueRequestList = () => {
           <input
             type="date"
             className="border border-black/20 rounded-2xl p-3 w-full"
+            value={toDate}
+            onChange={(e) => {
+              setToDate(e.target.value);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>
@@ -81,25 +139,37 @@ const MaterialIssueRequestList = () => {
               <th className="px-4 py-2 border-r-2">Job Card No</th>
               <th className="px-4 py-2 border-r-2">Job Name</th>
               <th className="px-4 py-2 border-r-2">Request Date</th>
-              <th className="px-4 py-2 border-r-2">Request Type</th>
-              <th className="px-4 py-2 border-r-2">Company Name</th>
+              {/* <th className="px-4 py-2 border-r-2">Request Type</th> */}
+              {/* <th className="px-4 py-2 border-r-2">Customer Name</th> */}
               <th className="px-4 py-2 border-r-2">Required Material</th>
+              <th className="px-4 py-2 border-r-2">Request By</th>
               <th className="px-4 py-2">Action</th>
             </tr>
           </thead>
 
           <tbody>
-            {data.map((item, index) => (
+            {currentItems.map((item, index) => (
               <tr key={index} className="border text-center">
                 <td className="border px-4 py-2">{item.jobCardNo}</td>
                 <td className="border px-4 py-2">{item.jobName}</td>
-                <td className="border px-4 py-2">{item.requestDate}</td>
-                <td className="border px-4 py-2">{item.requestType}</td>
-                <td className="border px-4 py-2">{item.companyName}</td>
+                {/* <td className="border px-4 py-2">{item.requestDate}</td>
+                 */}
+                <td className="border px-4 py-2">
+                  {item.requestDate
+                    ? new Date(item.requestDate.seconds * 1000)
+                        .toISOString()
+                        .split("T")[0]
+                    : ""}
+                </td>
+
+                {/* <td className="border px-4 py-2">{item.requestType}</td> */}
+                {/* <td className="border px-4 py-2">{item.customerName}</td> */}
                 <td className="border px-4 py-2">{item.requiredMaterial}</td>
+                <td className="border px-4 py-2">{item.createdBy}</td>
+
                 <td className="border px-4 py-2">
                   <button
-                 className="bg-primary text-white px-3 py-1 rounded-lg"
+                    className="bg-primary text-white px-3 py-1 rounded-lg"
                     onClick={() => navigate(`${item.id}`)}
                   >
                     Issue Now
@@ -113,8 +183,33 @@ const MaterialIssueRequestList = () => {
 
       {/* Pagination */}
       <div className="flex gap-2 mt-5">
-        <button className="px-4 py-2 border rounded-md">Prev</button>
-        <button className="px-4 py-2 border rounded-md">Next</button>
+        <button
+          className="px-4 py-2 border rounded-md"
+          onClick={() => goToPage(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
+          Prev
+        </button>
+
+        {[...Array(totalPages)].map((_, i) => (
+          <button
+            key={i}
+            className={`px-4 py-2 border rounded-md ${
+              currentPage === i + 1 ? "bg-primary text-white" : ""
+            }`}
+            onClick={() => goToPage(i + 1)}
+          >
+            {i + 1}
+          </button>
+        ))}
+
+        <button
+          className="px-4 py-2 border rounded-md"
+          onClick={() => goToPage(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
+          Next
+        </button>
       </div>
     </div>
   );
