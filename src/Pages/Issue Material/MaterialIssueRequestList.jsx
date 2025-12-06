@@ -7,14 +7,12 @@ import { db } from "../../firebase";
 
 const MaterialIssueRequestList = () => {
   const navigate = useNavigate();
-
   const [data, setData] = useState([]);
   const [search, setSearch] = useState("");
-
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
-
   const [currentPage, setCurrentPage] = useState(1);
+  const [dateError, setDateError] = useState("");
   const itemsPerPage = 10;
 
   // 🔥 FETCH MATERIAL REQUEST DATA
@@ -44,10 +42,10 @@ const MaterialIssueRequestList = () => {
     fetchData();
   }, []);
 
-  // 🔍 SEARCH + DATE RANGE FILTER
   const filteredItems = data.filter((item) => {
-    const formattedDate = item.requestDate
-      ? new Date(item.requestDate.seconds * 1000).toISOString().split("T")[0]
+    // 🔥 Use createdAt instead of requestDate (to match what's displayed)
+    const formattedDate = item.createdAt
+      ? new Date(item.createdAt.seconds * 1000).toISOString().split("T")[0]
       : "";
 
     const s = search.toLowerCase();
@@ -56,7 +54,8 @@ const MaterialIssueRequestList = () => {
     const matchesSearch =
       item.jobCardNo?.toLowerCase().includes(s) ||
       item.jobName?.toLowerCase().includes(s) ||
-      item.companyName?.toLowerCase().includes(s) ||
+      item.requiredMaterial?.toLowerCase().includes(s) ||
+      item.createdBy?.toLowerCase().includes(s) ||
       formattedDate.includes(s);
 
     if (!matchesSearch) return false;
@@ -80,11 +79,10 @@ const MaterialIssueRequestList = () => {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5  max-w-full overflow-hidden">
       <h1>Material Request List</h1>
 
       <hr />
-
       {/* Search */}
       <div className="w-full relative">
         <input
@@ -101,34 +99,58 @@ const MaterialIssueRequestList = () => {
       </div>
 
       {/* Date Filter */}
-      <div className="flex gap-10 items-center">
-        <div className="relative">
-          <label className="block mb-2 font-medium">From Date</label>
-          <input
-            type="date"
-            className="border border-black/20 rounded-2xl p-3 w-full"
-            value={fromDate}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
+      <div className="space-y-2">
+        <div className="flex gap-10 items-center">
+          <div className="relative">
+            <label className="block mb-2 font-medium">From Date</label>
+            <input
+              type="date"
+              className="border border-black/20 rounded-2xl p-3 w-full"
+              value={fromDate}
+              onChange={(e) => {
+                const newFromDate = e.target.value;
+                setFromDate(newFromDate);
+                setCurrentPage(1);
+
+                // Validate: fromDate should be less than toDate
+                if (toDate && newFromDate > toDate) {
+                  setDateError(
+                    "From Date must be less than or equal to To Date"
+                  );
+                } else {
+                  setDateError("");
+                }
+              }}
+            />
+          </div>
+
+          <div className="relative">
+            <label className="block mb-2 font-medium">To Date</label>
+            <input
+              type="date"
+              className="border border-black/20 rounded-2xl p-3 w-full"
+              value={toDate}
+              onChange={(e) => {
+                const newToDate = e.target.value;
+                setToDate(newToDate);
+                setCurrentPage(1);
+
+                // Validate: toDate should be greater than fromDate
+                if (fromDate && newToDate < fromDate) {
+                  setDateError(
+                    "To Date must be greater than or equal to From Date"
+                  );
+                } else {
+                  setDateError("");
+                }
+              }}
+            />
+          </div>
         </div>
 
-        <div className="relative">
-          <label className="block mb-2 font-medium">To Date</label>
-          <input
-            type="date"
-            className="border border-black/20 rounded-2xl p-3 w-full"
-            value={toDate}
-            onChange={(e) => {
-              setToDate(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-        </div>
+        {/* Error Message */}
+        {dateError && <p className="text-red-600 text-sm">{dateError}</p>}
       </div>
-
       <h2 className="font-bold text-lg">All Jobs</h2>
 
       {/* TABLE */}
@@ -139,8 +161,6 @@ const MaterialIssueRequestList = () => {
               <th className="px-4 py-2 border-r-2">Job Card No</th>
               <th className="px-4 py-2 border-r-2">Job Name</th>
               <th className="px-4 py-2 border-r-2">Request Date</th>
-              {/* <th className="px-4 py-2 border-r-2">Request Type</th> */}
-              {/* <th className="px-4 py-2 border-r-2">Customer Name</th> */}
               <th className="px-4 py-2 border-r-2">Required Material</th>
               <th className="px-4 py-2 border-r-2">Request By</th>
               <th className="px-4 py-2">Action</th>
@@ -152,25 +172,21 @@ const MaterialIssueRequestList = () => {
               <tr key={index} className="border text-center">
                 <td className="border px-4 py-2">{item.jobCardNo}</td>
                 <td className="border px-4 py-2">{item.jobName}</td>
-                {/* <td className="border px-4 py-2">{item.requestDate}</td>
-                 */}
                 <td className="border px-4 py-2">
-                  {item.requestDate
-                    ? new Date(item.requestDate.seconds * 1000)
+                  {item.createdAt
+                    ? new Date(item.createdAt.seconds * 1000)
                         .toISOString()
                         .split("T")[0]
                     : ""}
                 </td>
-
-                {/* <td className="border px-4 py-2">{item.requestType}</td> */}
-                {/* <td className="border px-4 py-2">{item.customerName}</td> */}
                 <td className="border px-4 py-2">{item.requiredMaterial}</td>
                 <td className="border px-4 py-2">{item.createdBy}</td>
 
                 <td className="border px-4 py-2">
                   <button
                     className="bg-primary text-white px-3 py-1 rounded-lg"
-                    onClick={() => navigate(`${item.id}`)}
+                    // onClick={() => navigate(`${item.id}`)}
+                    onClick={() => navigate(`/issue_material/${item.id}`)}
                   >
                     Issue Now
                   </button>
