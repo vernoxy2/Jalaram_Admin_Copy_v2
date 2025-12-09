@@ -9,6 +9,7 @@ import AdminLayout from "./Components/Layout/AdminLayout";
 import Dashboard from "./Pages/Dashboard";
 import MaterialIssueForm from "./Pages/Issue Material/MaterialIssueForm";
 import MaterialIssueRequestList from "./Pages/Issue Material/MaterialIssueRequestList";
+import AdminJobDetailsScreen from "./Pages/JobCard/JobDetailScreen";
 
 const App = () => {
   return (
@@ -25,7 +26,7 @@ const App = () => {
             <Route index element={<JobCard />} />
             <Route path="addjob" element={<AddJob />} />
             <Route path="edit/:id" element={<AddJob />} />
-            <Route path="detail/:id" element={<JobDetailScreen />} />
+            <Route path="detail/:id" element={<AdminJobDetailsScreen   />} />
           </Route>
 
           {/* Material Routes */}
