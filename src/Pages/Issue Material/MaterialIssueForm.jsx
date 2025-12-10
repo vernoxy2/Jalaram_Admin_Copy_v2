@@ -368,6 +368,7 @@ const MaterialIssueForm = () => {
           ...materialUpdates,
           materialAllotStatus: "Allocated",
           updatedAt: new Date(),
+          paperSize:formData.paperSize
         });
 
         console.log(

@@ -18,7 +18,6 @@ const StockReport = () => {
       try {
         setLoading(true);
 
-        // Use real Firebase data
         const materialsSnapshot = await getDocs(collection(db, "materials"));
         const materials = materialsSnapshot.docs.map((doc) => ({
           id: doc.id,
@@ -34,42 +33,46 @@ const StockReport = () => {
         }));
 
         const stockReport = materials.map((material) => {
-          // ✅ FIX: Match transactions by paperProductNo (which contains the actual paper codes like "CAP25-001")
           const materialTransactions = transactions.filter((t) => {
             if (material.materialCategory === "RAW") {
-              // Match by paperProductNo which contains the actual paper codes
-              // t.paperProductNo can be a comma-separated list like "CAP25-001, CAP25-002"
               const transactionPaperCodes = t.paperProductNo 
                 ? t.paperProductNo.split(',').map(code => code.trim()) 
                 : [];
-              
-              // Check if this material's paperCode is in the transaction's paperProductNo list
               return transactionPaperCodes.includes(material.paperCode);
-            } else if (material.materialCategory === "LO" || material.materialCategory === "WIP") {
-              // LO/WIP materials don't have consumption transactions
-              // They are created as output, not consumed
-              return false;
             }
             return false;
           });
 
-          // Calculate totals from matched transactions
-          const totalUsed = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.usedQty) || 0),
-            0
-          );
-          const totalWaste = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.wasteQty) || 0),
-            0
-          );
-          const totalLO = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.loQty) || 0),
-            0
-          );
-          const totalWIP = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.wipQty) || 0),
-            0
-          );
+          const stageOrder = ['printing', 'punching', 'slitting', 'slotting'];
+          
+          let lastStage = null;
+          for (let i = stageOrder.length - 1; i >= 0; i--) {
+            const stageTransactions = materialTransactions.filter(
+              t => (t.stage || '').toLowerCase() === stageOrder[i]
+            );
+            if (stageTransactions.length > 0) {
+              lastStage = stageOrder[i];
+              break;
+            }
+          }
+
+          const totalUsed = lastStage 
+            ? materialTransactions
+                .filter(t => (t.stage || '').toLowerCase() === lastStage)
+                .reduce((sum, t) => sum + (parseFloat(t.usedQty) || 0), 0)
+            : 0;
+
+          const totalWaste = materialTransactions
+            .filter(t => t.transactionType === 'consumption')
+            .reduce((sum, t) => sum + (parseFloat(t.wasteQty) || 0), 0);
+            
+          const totalLO = materialTransactions
+            .filter(t => t.transactionType === 'consumption')
+            .reduce((sum, t) => sum + (parseFloat(t.loQty) || 0), 0);
+            
+          const totalWIP = materialTransactions
+            .filter(t => t.transactionType === 'consumption')
+            .reduce((sum, t) => sum + (parseFloat(t.wipQty) || 0), 0);
 
           const materialDate = material.createdAt
             ? new Date(
@@ -79,6 +82,10 @@ const StockReport = () => {
               )
             : new Date();
 
+          // ✅ NEW: Separate RAW purchased vs Created quantity
+          const isPurchased = material.materialCategory === "RAW";
+          const isCreated = material.materialCategory === "LO" || material.materialCategory === "WIP";
+
           return {
             id: material.id,
             date: materialDate,
@@ -86,7 +93,9 @@ const StockReport = () => {
             paperProductCode: material.paperProductCode || "-",
             materialCategory: material.materialCategory || "RAW",
             jobPaper: material.jobPaper || "-",
-            materialIn: material.totalRunningMeter || 0,
+            // ✅ NEW: Split into two columns
+            purchased: isPurchased ? (material.totalRunningMeter || 0) : 0,
+            created: isCreated ? (material.totalRunningMeter || 0) : 0,
             used: totalUsed,
             waste: totalWaste,
             lo: totalLO,
@@ -99,7 +108,6 @@ const StockReport = () => {
         });
 
         stockReport.sort((a, b) => b.date - a.date);
-
         setStockData(stockReport);
       } catch (error) {
         console.error("Error fetching stock data:", error);
@@ -144,17 +152,27 @@ const StockReport = () => {
     }
   };
 
-  // Calculate totals for summary
+  // ✅ NEW: Smart totals that work with filters
   const summaryTotals = filteredStock.reduce(
-    (acc, item) => ({
-      materialIn: acc.materialIn + item.materialIn,
-      used: acc.used + item.used,
-      waste: acc.waste + item.waste,
-      lo: acc.lo + item.lo,
-      wip: acc.wip + item.wip,
-      available: acc.available + item.available,
-    }),
-    { materialIn: 0, used: 0, waste: 0, lo: 0, wip: 0, available: 0 }
+    (acc, item) => {
+      acc.purchased += item.purchased;
+      acc.created += item.created;
+      acc.used += item.used;
+      acc.waste += item.waste;
+      
+      if (item.materialCategory === "LO") {
+        acc.loCreated += item.created;
+      }
+      
+      if (item.materialCategory === "WIP") {
+        acc.wipCreated += item.created;
+      }
+      
+      acc.available += item.available;
+      
+      return acc;
+    },
+    { purchased: 0, created: 0, used: 0, waste: 0, loCreated: 0, wipCreated: 0, available: 0 }
   );
 
   // Export to CSV
@@ -165,7 +183,8 @@ const StockReport = () => {
       "Company",
       "Material Type",
       "Category",
-      "Material In",
+      "Purchased",
+      "Created",
       "Used",
       "Waste",
       "LO",
@@ -181,7 +200,8 @@ const StockReport = () => {
       item.paperProductCode,
       item.jobPaper,
       item.materialCategory,
-      item.materialIn,
+      item.purchased,
+      item.created,
       item.used,
       item.waste,
       item.lo,
@@ -213,43 +233,43 @@ const StockReport = () => {
 
   return (
     <div className="space-y-4 p-6">
-      <h1 className="text-3xl font-bold">Stock Report (Fixed)</h1>
+      <h1 className="text-3xl font-bold">Stock Report</h1>
       <hr />
 
-      {/* Summary Cards */}
+      {/* ✅ NEW: Dynamic Summary Cards based on filter */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div className="bg-blue-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Material In</div>
+          <div className="text-xs text-gray-600">RAW Purchased</div>
           <div className="text-2xl font-bold text-blue-600">
-            {summaryTotals.materialIn.toFixed(2)}
+            {summaryTotals.purchased.toFixed(2)}
           </div>
         </div>
         <div className="bg-green-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Used</div>
+          <div className="text-xs text-gray-600">Total Used (Final)</div>
           <div className="text-2xl font-bold text-green-600">
             {summaryTotals.used.toFixed(2)}
           </div>
         </div>
         <div className="bg-red-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Waste</div>
+          <div className="text-xs text-gray-600">Total Waste</div>
           <div className="text-2xl font-bold text-red-600">
             {summaryTotals.waste.toFixed(2)}
           </div>
         </div>
         <div className="bg-yellow-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total LO</div>
+          <div className="text-xs text-gray-600">LO Created</div>
           <div className="text-2xl font-bold text-yellow-600">
-            {summaryTotals.lo.toFixed(2)}
+            {summaryTotals.loCreated.toFixed(2)}
           </div>
         </div>
         <div className="bg-purple-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total WIP</div>
+          <div className="text-xs text-gray-600">WIP Created</div>
           <div className="text-2xl font-bold text-purple-600">
-            {summaryTotals.wip.toFixed(2)}
+            {summaryTotals.wipCreated.toFixed(2)}
           </div>
         </div>
         <div className="bg-indigo-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Available</div>
+          <div className="text-xs text-gray-600">Total Available</div>
           <div className="text-2xl font-bold text-indigo-600">
             {summaryTotals.available.toFixed(2)}
           </div>
@@ -334,7 +354,8 @@ const StockReport = () => {
               <th className="px-3 py-3 border-r-2">Company</th>
               <th className="px-3 py-3 border-r-2">Material Type</th>
               <th className="px-3 py-3 border-r-2">Category</th>
-              <th className="px-3 py-3 border-r-2">Material In</th>
+              <th className="px-3 py-3 border-r-2 bg-blue-900">Purchased</th>
+              <th className="px-3 py-3 border-r-2 bg-blue-900">Created</th>
               <th className="px-3 py-3 border-r-2">Used</th>
               <th className="px-3 py-3 border-r-2">Waste</th>
               <th className="px-3 py-3 border-r-2">LO</th>
@@ -371,8 +392,11 @@ const StockReport = () => {
                     {item.materialCategory}
                   </span>
                 </td>
-                <td className="border px-3 py-2 text-sm font-semibold">
-                  {item.materialIn.toFixed(2)}
+                <td className="border px-3 py-2 text-sm font-semibold bg-blue-50">
+                  {item.purchased > 0 ? item.purchased.toFixed(2) : "-"}
+                </td>
+                <td className="border px-3 py-2 text-sm font-semibold bg-blue-50">
+                  {item.created > 0 ? item.created.toFixed(2) : "-"}
                 </td>
                 <td className="border px-3 py-2 text-sm text-green-600">
                   {item.used.toFixed(2)}
@@ -400,7 +424,7 @@ const StockReport = () => {
 
             {currentItems.length === 0 && (
               <tr>
-                <td colSpan="13" className="text-center p-4 text-gray-500">
+                <td colSpan="14" className="text-center p-4 text-gray-500">
                   No stock data found
                 </td>
               </tr>
@@ -412,8 +436,11 @@ const StockReport = () => {
               <td colSpan="5" className="border px-3 py-3 text-right">
                 TOTALS:
               </td>
-              <td className="border px-3 py-3 text-blue-600">
-                {summaryTotals.materialIn.toFixed(2)}
+              <td className="border px-3 py-3 text-blue-600 bg-blue-50">
+                {summaryTotals.purchased.toFixed(2)}
+              </td>
+              <td className="border px-3 py-3 text-blue-600 bg-blue-50">
+                {summaryTotals.created.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-green-600">
                 {summaryTotals.used.toFixed(2)}
@@ -422,10 +449,10 @@ const StockReport = () => {
                 {summaryTotals.waste.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-yellow-600">
-                {summaryTotals.lo.toFixed(2)}
+                {summaryTotals.loCreated.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-purple-600">
-                {summaryTotals.wip.toFixed(2)}
+                {summaryTotals.wipCreated.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-indigo-600">
                 {summaryTotals.available.toFixed(2)}
@@ -474,26 +501,25 @@ const StockReport = () => {
         <h3 className="font-bold text-lg mb-2">📊 Understanding the Report</h3>
         <ul className="space-y-1 text-sm">
           <li>
-            <strong>Material In:</strong> Initial quantity when material was
-            added to inventory
+            <strong>Purchased:</strong> RAW material bought from suppliers (only for RAW materials)
           </li>
           <li>
-            <strong>Used:</strong> Quantity consumed from THIS specific material (not cumulative across stages)
+            <strong>Created:</strong> LO/WIP materials generated during production (only for LO/WIP materials)
           </li>
           <li>
-            <strong>Waste:</strong> Wastage generated when THIS material was used
+            <strong>Used (Final Output):</strong> Final product output from the last production stage
           </li>
           <li>
-            <strong>LO (Leftover):</strong> Reusable material generated when THIS material was consumed
+            <strong>Waste:</strong> Total material wasted across all production stages
           </li>
           <li>
-            <strong>WIP (Work in Progress):</strong> Semi-finished material created from THIS material
+            <strong>LO/WIP:</strong> Quantities of leftover and work-in-progress materials generated
           </li>
           <li>
-            <strong>Available:</strong> Current available quantity in stock
+            <strong>Total Available:</strong> Current available stock across all categories (RAW + LO + WIP)
           </li>
-          <li>
-            <strong>Note:</strong> For RAW materials, Used/Waste/LO/WIP show first stage consumption. LO/WIP materials show their creation quantity in "Material In"
+          <li className="bg-yellow-50 p-2 rounded mt-2">
+            <strong>💡 Tip:</strong> Use the Category filter to view RAW purchases separately from LO/WIP created materials. Totals adjust automatically!
           </li>
         </ul>
       </div>
