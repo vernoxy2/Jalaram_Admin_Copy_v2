@@ -33,28 +33,103 @@ const StockReport = () => {
         }));
 
         const stockReport = materials.map((material) => {
-          const materialTransactions = transactions.filter(
-            (t) =>
-              t.paperCode === material.paperCode ||
-              t.paperProductNo === material.paperCode
-          );
+          // Match transactions by paperCode for ALL material categories
+          const materialTransactions = transactions.filter((t) => {
+            // For RAW materials: match against paperProductNo (comma-separated paper codes)
+            if (material.materialCategory === "RAW") {
+              const transactionPaperCodes = t.paperProductNo 
+                ? t.paperProductNo.split(',').map(code => code.trim()) 
+                : [];
+              return transactionPaperCodes.includes(material.paperCode);
+            }
+            
+            // For LO/WIP materials: match by exact paperCode
+            if (material.materialCategory === "LO" || material.materialCategory === "WIP") {
+              return t.paperCode === material.paperCode || 
+                     t.paperProductCode === material.paperCode ||
+                     t.paperProductNo === material.paperCode;
+            }
+            
+            return false;
+          });
 
-          const totalUsed = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.usedQty) || 0),
-            0
-          );
-          const totalWaste = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.wasteQty) || 0),
-            0
-          );
-          const totalLO = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.loQty) || 0),
-            0
-          );
-          const totalWIP = materialTransactions.reduce(
-            (sum, t) => sum + (parseFloat(t.wipQty) || 0),
-            0
-          );
+          let totalUsed = 0;
+          let totalWaste = 0;
+          let totalLO = 0;
+          let totalWIP = 0;
+
+          if (material.materialCategory === "RAW") {
+            // ✅ For RAW: Find the LAST stage where material was used
+            const stageOrder = ['printing', 'punching', 'slitting', 'slotting'];
+            
+            let lastStage = null;
+            for (let i = stageOrder.length - 1; i >= 0; i--) {
+              const stageTransactions = materialTransactions.filter(
+                t => (t.stage || '').toLowerCase() === stageOrder[i]
+              );
+              if (stageTransactions.length > 0) {
+                lastStage = stageOrder[i];
+                break;
+              }
+            }
+
+            // Only count the LAST stage to avoid double counting
+            if (lastStage) {
+              const lastStageTransactions = materialTransactions.filter(
+                t => (t.stage || '').toLowerCase() === lastStage
+              );
+              
+              totalUsed = lastStageTransactions.reduce(
+                (sum, t) => sum + (parseFloat(t.usedQty) || 0), 0
+              );
+            }
+
+            // Sum waste, LO, WIP across ALL stages (these are actual losses/outputs)
+            totalWaste = materialTransactions
+              .filter(t => t.transactionType === 'consumption')
+              .reduce((sum, t) => sum + (parseFloat(t.wasteQty) || 0), 0);
+              
+            totalLO = materialTransactions
+              .filter(t => t.transactionType === 'consumption')
+              .reduce((sum, t) => sum + (parseFloat(t.loQty) || 0), 0);
+              
+            totalWIP = materialTransactions
+              .filter(t => t.transactionType === 'consumption')
+              .reduce((sum, t) => sum + (parseFloat(t.wipQty) || 0), 0);
+              
+          } else if (material.materialCategory === "LO" || material.materialCategory === "WIP") {
+            // ✅ For LO/WIP: Only calculate if material has been consumed
+            const consumptionTransactions = materialTransactions.filter(
+              t => t.transactionType === 'consumption'
+            );
+
+            // ✅ FIX: If no consumption transactions exist, this material hasn't been used yet
+            if (consumptionTransactions.length > 0) {
+              const created = material.totalRunningMeter || 0;
+
+              totalWaste = consumptionTransactions.reduce(
+                (sum, t) => sum + (parseFloat(t.wasteQty) || 0), 0
+              );
+              totalLO = consumptionTransactions.reduce(
+                (sum, t) => sum + (parseFloat(t.loQty) || 0), 0
+              );
+              totalWIP = consumptionTransactions.reduce(
+                (sum, t) => sum + (parseFloat(t.wipQty) || 0), 0
+              );
+
+              // ✅ Used = Created - (Waste + LO + WIP)
+              totalUsed = created - (totalWaste + totalLO + totalWIP);
+              
+              // Ensure used is not negative
+              if (totalUsed < 0) totalUsed = 0;
+            } else {
+              // ✅ Material not consumed yet - all values are 0
+              totalUsed = 0;
+              totalWaste = 0;
+              totalLO = 0;
+              totalWIP = 0;
+            }
+          }
 
           const materialDate = material.createdAt
             ? new Date(
@@ -64,6 +139,9 @@ const StockReport = () => {
               )
             : new Date();
 
+          const isPurchased = material.materialCategory === "RAW";
+          const isCreated = material.materialCategory === "LO" || material.materialCategory === "WIP";
+
           return {
             id: material.id,
             date: materialDate,
@@ -71,7 +149,8 @@ const StockReport = () => {
             paperProductCode: material.paperProductCode || "-",
             materialCategory: material.materialCategory || "RAW",
             jobPaper: material.jobPaper || "-",
-            materialIn: material.totalRunningMeter || 0,
+            purchased: isPurchased ? (material.totalRunningMeter || 0) : 0,
+            created: isCreated ? (material.totalRunningMeter || 0) : 0,
             used: totalUsed,
             waste: totalWaste,
             lo: totalLO,
@@ -84,7 +163,6 @@ const StockReport = () => {
         });
 
         stockReport.sort((a, b) => b.date - a.date);
-
         setStockData(stockReport);
       } catch (error) {
         console.error("Error fetching stock data:", error);
@@ -101,7 +179,6 @@ const StockReport = () => {
     const formattedDate = item.date.toISOString().split("T")[0];
     const s = search.toLowerCase();
 
-    // Search filter
     const matchesSearch =
       item.paperCode.toLowerCase().includes(s) ||
       item.paperProductCode.toLowerCase().includes(s) ||
@@ -109,12 +186,8 @@ const StockReport = () => {
       item.sourceJobCardNo.toLowerCase().includes(s);
 
     if (!matchesSearch) return false;
-
-    // Date range filter
     if (fromDate && formattedDate < fromDate) return false;
     if (toDate && formattedDate > toDate) return false;
-
-    // Category filter
     if (categoryFilter !== "ALL" && item.materialCategory !== categoryFilter) {
       return false;
     }
@@ -134,17 +207,27 @@ const StockReport = () => {
     }
   };
 
-  // Calculate totals for summary
+  // Summary totals
   const summaryTotals = filteredStock.reduce(
-    (acc, item) => ({
-      materialIn: acc.materialIn + item.materialIn,
-      used: acc.used + item.used,
-      waste: acc.waste + item.waste,
-      lo: acc.lo + item.lo,
-      wip: acc.wip + item.wip,
-      available: acc.available + item.available,
-    }),
-    { materialIn: 0, used: 0, waste: 0, lo: 0, wip: 0, available: 0 }
+    (acc, item) => {
+      acc.purchased += item.purchased;
+      acc.created += item.created;
+      acc.used += item.used;
+      acc.waste += item.waste;
+      
+      if (item.materialCategory === "LO") {
+        acc.loCreated += item.created;
+      }
+      
+      if (item.materialCategory === "WIP") {
+        acc.wipCreated += item.created;
+      }
+      
+      acc.available += item.available;
+      
+      return acc;
+    },
+    { purchased: 0, created: 0, used: 0, waste: 0, loCreated: 0, wipCreated: 0, available: 0 }
   );
 
   // Export to CSV
@@ -155,7 +238,8 @@ const StockReport = () => {
       "Company",
       "Material Type",
       "Category",
-      "Material In",
+      "Purchased",
+      "Created",
       "Used",
       "Waste",
       "LO",
@@ -171,7 +255,8 @@ const StockReport = () => {
       item.paperProductCode,
       item.jobPaper,
       item.materialCategory,
-      item.materialIn,
+      item.purchased,
+      item.created,
       item.used,
       item.waste,
       item.lo,
@@ -209,37 +294,37 @@ const StockReport = () => {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div className="bg-blue-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Material In</div>
+          <div className="text-xs text-gray-600">RAW Purchased</div>
           <div className="text-2xl font-bold text-blue-600">
-            {summaryTotals.materialIn.toFixed(2)}
+            {summaryTotals.purchased.toFixed(2)}
           </div>
         </div>
         <div className="bg-green-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Used</div>
+          <div className="text-xs text-gray-600">Total Used (Final)</div>
           <div className="text-2xl font-bold text-green-600">
             {summaryTotals.used.toFixed(2)}
           </div>
         </div>
         <div className="bg-red-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Waste</div>
+          <div className="text-xs text-gray-600">Total Waste</div>
           <div className="text-2xl font-bold text-red-600">
             {summaryTotals.waste.toFixed(2)}
           </div>
         </div>
         <div className="bg-yellow-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total LO</div>
+          <div className="text-xs text-gray-600">LO Created</div>
           <div className="text-2xl font-bold text-yellow-600">
-            {summaryTotals.lo.toFixed(2)}
+            {summaryTotals.loCreated.toFixed(2)}
           </div>
         </div>
         <div className="bg-purple-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total WIP</div>
+          <div className="text-xs text-gray-600">WIP Created</div>
           <div className="text-2xl font-bold text-purple-600">
-            {summaryTotals.wip.toFixed(2)}
+            {summaryTotals.wipCreated.toFixed(2)}
           </div>
         </div>
         <div className="bg-indigo-100 p-4 rounded-lg shadow">
-          <div className="text-sm text-gray-600">Total Available</div>
+          <div className="text-xs text-gray-600">Total Available</div>
           <div className="text-2xl font-bold text-indigo-600">
             {summaryTotals.available.toFixed(2)}
           </div>
@@ -248,7 +333,6 @@ const StockReport = () => {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 items-end">
-        {/* Search */}
         <div className="flex-1 min-w-[200px] relative">
           <input
             type="text"
@@ -263,7 +347,6 @@ const StockReport = () => {
           <FiSearch className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
 
-        {/* Category Filter */}
         <div>
           <label className="block mb-2 font-medium text-sm">Category</label>
           <select
@@ -281,7 +364,6 @@ const StockReport = () => {
           </select>
         </div>
 
-        {/* From Date */}
         <div>
           <label className="block mb-2 font-medium text-sm">From Date</label>
           <input
@@ -295,7 +377,6 @@ const StockReport = () => {
           />
         </div>
 
-        {/* To Date */}
         <div>
           <label className="block mb-2 font-medium text-sm">To Date</label>
           <input
@@ -309,7 +390,6 @@ const StockReport = () => {
           />
         </div>
 
-        {/* Export Button */}
         <button
           onClick={exportToCSV}
           className="bg-green-600 text-white px-4 py-3 rounded-2xl flex items-center gap-2 hover:bg-green-700"
@@ -329,7 +409,8 @@ const StockReport = () => {
               <th className="px-3 py-3 border-r-2">Company</th>
               <th className="px-3 py-3 border-r-2">Material Type</th>
               <th className="px-3 py-3 border-r-2">Category</th>
-              <th className="px-3 py-3 border-r-2">Material In</th>
+              <th className="px-3 py-3 border-r-2 bg-blue-900">Purchased</th>
+              <th className="px-3 py-3 border-r-2 bg-blue-900">Created</th>
               <th className="px-3 py-3 border-r-2">Used</th>
               <th className="px-3 py-3 border-r-2">Waste</th>
               <th className="px-3 py-3 border-r-2">LO</th>
@@ -366,8 +447,11 @@ const StockReport = () => {
                     {item.materialCategory}
                   </span>
                 </td>
-                <td className="border px-3 py-2 text-sm font-semibold">
-                  {item.materialIn.toFixed(2)}
+                <td className="border px-3 py-2 text-sm font-semibold bg-blue-50">
+                  {item.purchased > 0 ? item.purchased.toFixed(2) : "-"}
+                </td>
+                <td className="border px-3 py-2 text-sm font-semibold bg-blue-50">
+                  {item.created > 0 ? item.created.toFixed(2) : "-"}
                 </td>
                 <td className="border px-3 py-2 text-sm text-green-600">
                   {item.used.toFixed(2)}
@@ -395,21 +479,23 @@ const StockReport = () => {
 
             {currentItems.length === 0 && (
               <tr>
-                <td colSpan="13" className="text-center p-4 text-gray-500">
+                <td colSpan="14" className="text-center p-4 text-gray-500">
                   No stock data found
                 </td>
               </tr>
             )}
           </tbody>
 
-          {/* Footer Totals */}
           <tfoot className="bg-gray-100 font-bold">
             <tr className="text-center">
               <td colSpan="5" className="border px-3 py-3 text-right">
                 TOTALS:
               </td>
-              <td className="border px-3 py-3 text-blue-600">
-                {summaryTotals.materialIn.toFixed(2)}
+              <td className="border px-3 py-3 text-blue-600 bg-blue-50">
+                {summaryTotals.purchased.toFixed(2)}
+              </td>
+              <td className="border px-3 py-3 text-blue-600 bg-blue-50">
+                {summaryTotals.created.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-green-600">
                 {summaryTotals.used.toFixed(2)}
@@ -418,10 +504,10 @@ const StockReport = () => {
                 {summaryTotals.waste.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-yellow-600">
-                {summaryTotals.lo.toFixed(2)}
+                {summaryTotals.loCreated.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-purple-600">
-                {summaryTotals.wip.toFixed(2)}
+                {summaryTotals.wipCreated.toFixed(2)}
               </td>
               <td className="border px-3 py-3 text-indigo-600">
                 {summaryTotals.available.toFixed(2)}
@@ -470,30 +556,22 @@ const StockReport = () => {
         <h3 className="font-bold text-lg mb-2">📊 Understanding the Report</h3>
         <ul className="space-y-1 text-sm">
           <li>
-            <strong>Material In:</strong> Initial quantity when material was
-            added to inventory
+            <strong>Purchased:</strong> RAW material bought from suppliers
           </li>
           <li>
-            <strong>Used:</strong> Total quantity consumed across all jobs that
-            used this material
+            <strong>Created:</strong> LO/WIP materials generated during production
           </li>
           <li>
-            <strong>Waste:</strong> Total wastage during production
+            <strong>Used:</strong> For RAW - final output from last stage. For LO/WIP - calculated as: Created - (Waste + LO + WIP)
           </li>
           <li>
-            <strong>LO (Leftover):</strong> Reusable material generated during
-            production
+            <strong>Waste/LO/WIP:</strong> Materials lost or generated at each stage
           </li>
           <li>
-            <strong>WIP (Work in Progress):</strong> Semi-finished materials
-            moving between stages
+            <strong>Available:</strong> Current stock available for use
           </li>
-          <li>
-            <strong>Available:</strong> Current available quantity in stock
-          </li>
-          <li>
-            <strong>Source Job/Stage:</strong> For LO and WIP materials, shows
-            which job and stage created them
+          <li className="bg-yellow-50 p-2 rounded mt-2">
+            <strong>💡 Formula for LO/WIP:</strong> Used = Created - Waste - LO - WIP. This prevents double-counting as material flows through stages.
           </li>
         </ul>
       </div>

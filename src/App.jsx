@@ -9,7 +9,6 @@ import Dashboard from "./Pages/Dashboard";
 import MaterialIssueForm from "./Pages/Issue Material/MaterialIssueForm";
 import MaterialIssueRequestList from "./Pages/Issue Material/MaterialIssueRequestList";
 import Stock from "./Pages/StockDetail/Stock";
-import AdminJobDetailsScreen from "./Pages/JobCard/JobDetailScreen";
 import JobDetailsScreen from "./Pages/JobCard/JobDetailScreen";
 
 const App = () => {
@@ -22,13 +21,11 @@ const App = () => {
           <Route index element={<Dashboard />} />
           <Route path="home" element={<Home />} />
 
-          {/* JobCard Routes */}
-          <Route path="jobcard">
-            <Route index element={<JobCard />} />
-            <Route path="addjob" element={<AddJob />} />
-            <Route path="edit/:id" element={<AddJob />} />
-            <Route path="detail/:id" element={<JobDetailsScreen/>} />
-          </Route>
+          {/* JobCard Routes - FIXED */}
+          <Route path="jobcard" element={<JobCard />} />
+          <Route path="jobcard/addjob" element={<AddJob />} />
+          <Route path="jobcard/edit/:id" element={<AddJob />} />
+          <Route path="jobcard/detail/:id" element={<JobDetailsScreen />} />
 
           {/* Material Routes */}
           <Route path="material_in">
