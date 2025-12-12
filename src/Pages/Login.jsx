@@ -56,19 +56,22 @@ const Login = () => {
     <div className="min-h-lvh flex flex-col-reverse lg:flex-row w-full relative overflow-hidden">
       {/* Decorative Right Images */}
       <img src={Right} alt="" className="block absolute right-0 top-0 w-40" />
-      <img src={Right} alt="" className="absolute rotate-180 bottom-0 left-0 w-40" />
+      <img
+        src={Right}
+        alt=""
+        className="absolute rotate-180 bottom-0 left-0 w-40"
+      />
 
       {/* Left Panel */}
-      <div className="lg:w-5/12 w-full lg:bg-gradient-to-b from-[#102F5C] to-[#3566AD] flex justify-center items-center py-16 px-6">
-        <div className="space-y-8 w-full max-w-sm text-center lg:text-left">
-          <div className="lg:flex justify-center lg:justify-start hidden">
-            <img src={Logo} alt="Logo" className="w-32 hidden" />
+      <div className="lg:w-5/12 w-full lg:bg-gradient-to-b from-[#102F5C] to-[#3566AD] flex justify-center items-start py-16 px-6">
+        <div className="space-y-5 w-full max-w-sm text-center lg:text-left">
+          <div className="flex flex-col items-center justify-center w-fit gap-3 ">
             <img src={Logow} alt="Logo" className="w-32 hidden lg:block" />
+            <p className="text-[#3668B1] lg:text-white uppercase font-bold tracking-wide text-lg">
+              Shri jalaram labels
+            </p>
           </div>
-          <p className="text-[#3668B1] lg:text-white uppercase font-bold tracking-wide text-lg">
-            Shri jalaram labels
-          </p>
-          <h1 className="text-[#3668B1] lg:text-white font-medium text-3xl leading-snug">
+          <h1 className="text-[#3668B1] lg:text-white font-medium text-3xl leading-snug pt-8">
             One Click to <br /> Your Dashboard.
           </h1>
 
@@ -81,7 +84,9 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-transparent ring-2 lg:text-white lg:ring-white lg:placeholder:text-white shadow-md p-3 rounded-md w-full text-lg font-medium focus:outline-none"
               />
-              {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -92,7 +97,9 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-transparent ring-2 lg:text-white lg:ring-white lg:placeholder:text-white shadow-md p-3 rounded-md w-full text-lg font-medium focus:outline-none"
               />
-              {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password}</p>
+              )}
             </div>
 
             <button
@@ -107,7 +114,11 @@ const Login = () => {
 
       {/* Right Image Section */}
       <div className="flex justify-center items-center lg:p-10 flex-1">
-        <img src={LoginImg} alt="Login" className="h-[50vh] lg:h-[70vh] lg:object-contain" />
+        <img
+          src={LoginImg}
+          alt="Login"
+          className="h-[50vh] lg:h-[70vh] lg:object-contain"
+        />
       </div>
     </div>
   );
