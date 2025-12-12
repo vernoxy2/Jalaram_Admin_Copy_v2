@@ -168,8 +168,6 @@ const Dashboard = () => {
     );
   }
 
-  const completionRate = totalJobs > 0 ? ((completedJobs / totalJobs) * 100).toFixed(0) : 0;
-  const wasteRate = rawPurchased > 0 ? ((totalWaste / rawPurchased) * 100).toFixed(1) : 0;
 
   return (
     <div className="min-h-screen bg-white p-8">
