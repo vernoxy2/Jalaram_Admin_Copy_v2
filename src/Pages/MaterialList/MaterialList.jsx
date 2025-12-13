@@ -26,6 +26,17 @@ const MaterialList = () => {
   const itemsPerPage = 10;
   const [dateError, setDateError] = useState("");
 
+  // ✅ Helper function to safely extract string value from object or string
+  const getDisplayValue = (value) => {
+    if (!value) return "-";
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      // Handle {label, value} objects
+      return value.label || value.value || "-";
+    }
+    return String(value);
+  };
+
   // Fetch materials
   useEffect(() => {
     const fetchData = async () => {
@@ -78,11 +89,16 @@ const MaterialList = () => {
 
       const s = search.toLowerCase();
 
+      // ✅ Extract string values for search
+      const paperCodeStr = getDisplayValue(item.paperCode).toLowerCase();
+      const paperProductCodeStr = getDisplayValue(item.paperProductCode).toLowerCase();
+      const jobPaperStr = getDisplayValue(item.jobPaper).toLowerCase();
+
       // Search filter
       const matchesSearch =
-        item.paperCode?.toLowerCase().includes(s) ||
-        item.paperProductCode?.toLowerCase().includes(s) ||
-        item.jobPaper?.toLowerCase().includes(s) ||
+        paperCodeStr.includes(s) ||
+        paperProductCodeStr.includes(s) ||
+        jobPaperStr.includes(s) ||
         item.totalRunningMeter?.toString().includes(s) ||
         formattedDate.includes(s);
 
@@ -287,7 +303,11 @@ const MaterialList = () => {
               <th className="px-4 py-2 border-r-2">Company</th>
               <th className="px-4 py-2 border-r-2">Material Type</th>
               {activeTab === "created" && (
-                <th className="px-4 py-2 border-r-2">Material Category</th>
+                <>
+                  <th className="px-4 py-2 border-r-2">Material Category</th>
+                  <th className="px-4 py-2 border-r-2">Source Job</th>
+                  <th className="px-4 py-2 border-r-2">Source Stage</th>
+                </>
               )}
               <th className="px-4 py-2 border-r-2">Total Running Meter</th>
               <th className="px-4 py-2 border-r-2">Available Running Meter</th>
@@ -307,23 +327,33 @@ const MaterialList = () => {
                       ).toLocaleDateString("en-IN")
                     : ""}
                 </td>
-                <td className="border px-4 py-2">{item.paperCode}</td>
+                <td className="border px-4 py-2">{getDisplayValue(item.paperCode)}</td>
                 <td className="border px-4 py-2">
-                  {item.paperProductCode || "-"}
+                  {getDisplayValue(item.paperProductCode)}
                 </td>
-                <td className="border px-4 py-2">{item.jobPaper || "-"}</td>
+                <td className="border px-4 py-2">{getDisplayValue(item.jobPaper)}</td>
                 {activeTab === "created" && (
-                  <td className="border px-4 py-2">
-                    <span
-                      className={`px-2 py-1 rounded-full text-sm font-medium ${
-                        item.materialCategory === "LO"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-purple-100 text-purple-800"
-                      }`}
-                    >
-                      {item.materialCategory}
-                    </span>
-                  </td>
+                  <>
+                    <td className="border px-4 py-2">
+                      <span
+                        className={`px-2 py-1 rounded-full text-sm font-medium ${
+                          item.materialCategory === "LO"
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-purple-100 text-purple-800"
+                        }`}
+                      >
+                        {item.materialCategory}
+                      </span>
+                    </td>
+                    <td className="border px-4 py-2">
+                      {item.sourceJobCardNo || "-"}
+                    </td>
+                    <td className="border px-4 py-2">
+                      <span className="capitalize">
+                        {item.sourceStage || "-"}
+                      </span>
+                    </td>
+                  </>
                 )}
                 <td className="border px-4 py-2">{item.totalRunningMeter}</td>
                 <td className="border px-4 py-2">
@@ -348,7 +378,7 @@ const MaterialList = () => {
             {currentItems.length === 0 && (
               <tr>
                 <td
-                  colSpan={activeTab === "created" ? "8" : "7"}
+                  colSpan={activeTab === "created" ? "10" : "7"}
                   className="text-center p-8 text-gray-500"
                 >
                   <div className="text-4xl mb-2">📦</div>
