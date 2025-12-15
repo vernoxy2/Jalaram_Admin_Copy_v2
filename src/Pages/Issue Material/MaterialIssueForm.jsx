@@ -15,6 +15,8 @@ import {
 } from "firebase/firestore";
 import { FaCaretRight } from "react-icons/fa6";
 import { materialTypeList, paperProductCodeData } from "../../utils/constant";
+import BackButton from "../../Components/BackButton";
+import SuccessPopup from "../../Components/SuccessPopup";
 
 const MaterialIssueForm = () => {
   const navigate = useNavigate();
@@ -35,6 +37,7 @@ const MaterialIssueForm = () => {
 
   const [jobPaper, setJobPaper] = useState("");
   const [paperProductCode, setPaperProductCode] = useState("");
+  const [showPopup, setShowPopup] = useState(false);
 
   const [LO, setLO] = useState([]);
   const [WIP, setWIP] = useState([]);
@@ -102,7 +105,7 @@ const MaterialIssueForm = () => {
   }, [id]);
 
   /* -------------------------------------------------------------
-     2) FETCH MATERIALS WITH SORTING BY CREATED DATE & TIME (OLDEST FIRST)
+     2) FETCH MATERIALS WITH CUSTOMER NAME & SORTING BY CREATED DATE & TIME (OLDEST FIRST)
   --------------------------------------------------------------- */
   useEffect(() => {
     if (!paperProductCode || !jobPaper || !formData.paperSize) return;
@@ -113,6 +116,16 @@ const MaterialIssueForm = () => {
       try {
         const stringPaperSize = String(formData.paperSize);
         const numberPaperSize = Number(formData.paperSize);
+
+        // ✅ Fetch all orders first to map jobCardNo to customerName
+        const ordersSnapshot = await getDocs(collection(db, "ordersTest"));
+        const ordersMap = {};
+        ordersSnapshot.docs.forEach((doc) => {
+          const orderData = doc.data();
+          if (orderData.jobCardNo) {
+            ordersMap[orderData.jobCardNo] = orderData.customerName || "-";
+          }
+        });
 
         const baseConditions = [
           where("paperProductCode", "==", paperProductCode),
@@ -126,10 +139,12 @@ const MaterialIssueForm = () => {
           if (!timestamp) return 0;
           // Firestore Timestamp with seconds and nanoseconds
           if (timestamp.seconds !== undefined) {
-            return timestamp.seconds * 1000 + (timestamp.nanoseconds || 0) / 1000000;
+            return (
+              timestamp.seconds * 1000 + (timestamp.nanoseconds || 0) / 1000000
+            );
           }
           // Firestore Timestamp with toMillis method
-          if (typeof timestamp.toMillis === 'function') {
+          if (typeof timestamp.toMillis === "function") {
             return timestamp.toMillis();
           }
           // JavaScript Date object
@@ -156,7 +171,9 @@ const MaterialIssueForm = () => {
             rack: doc.data().rack || "N/A",
             createdAt: doc.data().createdAt,
           }))
-          .sort((a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt));
+          .sort(
+            (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
+          );
 
         // LO Materials Query
         const loQuery = query(
@@ -167,16 +184,22 @@ const MaterialIssueForm = () => {
 
         const loSnapshot = await getDocs(loQuery);
         const loList = loSnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            paperCode: doc.data().paperCode,
-            availableMeter: doc.data().availableRunningMeter || 0,
-            rack: doc.data().rack || "N/A",
-            sourceJobCardNo: doc.data().sourceJobCardNo,
-            createdAt: doc.data().createdAt,
-          }))
-          .sort((a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt));
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              paperCode: data.paperCode,
+              availableMeter: data.availableRunningMeter || 0,
+              rack: data.rack || "N/A",
+              sourceJobCardNo: data.sourceJobCardNo,
+              customerName: ordersMap[data.sourceJobCardNo] || "-", // ✅ Add customer name
+              createdAt: data.createdAt,
+            };
+          })
+          .sort(
+            (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
+          );
 
         // WIP Materials Query
         const wipQuery = query(
@@ -187,27 +210,31 @@ const MaterialIssueForm = () => {
 
         const wipSnapshot = await getDocs(wipQuery);
         const wipList = wipSnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            paperCode: doc.data().paperCode,
-            availableMeter: doc.data().availableRunningMeter || 0,
-            rack: doc.data().rack || "N/A",
-            stage: doc.data().sourceStage || "Unknown",
-            sourceJobCardNo: doc.data().sourceJobCardNo,
-            createdAt: doc.data().createdAt,
-          }))
-          .sort((a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt));
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              paperCode: data.paperCode,
+              availableMeter: data.availableRunningMeter || 0,
+              rack: data.rack || "N/A",
+              stage: data.sourceStage || "Unknown",
+              sourceJobCardNo: data.sourceJobCardNo,
+              customerName: ordersMap[data.sourceJobCardNo] || "-", // ✅ Add customer name
+              createdAt: data.createdAt,
+            };
+          })
+          .sort(
+            (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
+          );
 
         setRAW(rawList);
         setLO(loList);
         setWIP(wipList);
 
-        // ✅ Debug log to verify sorting (remove after testing)
-        console.log("✅ RAW Materials (sorted by createdAt - oldest first):");
-        rawList.forEach((item, index) => {
-          console.log(`  ${index + 1}. ${item.paperCode} - ${item.createdAt?.seconds ? new Date(item.createdAt.seconds * 1000).toLocaleString('en-GB') : 'N/A'}`);
-        });
+        // ✅ Debug log to verify customer names
+        console.log("✅ LO Materials with Customer Names:", loList);
+        console.log("✅ WIP Materials with Customer Names:", wipList);
       } catch (error) {
         console.error("Error fetching materials:", error);
       } finally {
@@ -223,7 +250,7 @@ const MaterialIssueForm = () => {
   --------------------------------------------------------------- */
   const formatDate = (timestamp) => {
     if (!timestamp) return "N/A";
-    
+
     let date;
     if (timestamp.seconds) {
       date = new Date(timestamp.seconds * 1000);
@@ -232,7 +259,7 @@ const MaterialIssueForm = () => {
     } else {
       return "N/A";
     }
-    
+
     return date.toLocaleDateString("en-GB"); // DD/MM/YYYY format
   };
 
@@ -260,13 +287,15 @@ const MaterialIssueForm = () => {
   const handleMeterChange = (id, meter) => {
     const roll = [...RAW, ...LO, ...WIP].find((r) => r.id === id);
     const meterValue = Number(meter);
-    
+
     // Don't allow negative values
     if (meterValue < 0) return;
-    
+
     // Don't allow values greater than available meter
     if (roll && meterValue > roll.availableMeter) {
-      alert(`Issue meter cannot exceed available meter (${roll.availableMeter})`);
+      alert(
+        `Issue meter cannot exceed available meter (${roll.availableMeter})`
+      );
       return;
     }
 
@@ -417,6 +446,12 @@ const MaterialIssueForm = () => {
           // ✅ Store individual paperCode, not comma-separated list
           materialUpdates[`paperProductNo${suffix}`] = roll.paperCode;
 
+          // ✅ Store jobPaper in {label, value} format for this specific roll
+          materialUpdates[`jobPaper${suffix}`] = {
+            label: roll.jobPaper || "-",
+            value: roll.jobPaper || "-",
+          };
+
           // ✅ Store individual issuedMeter for this specific roll
           materialUpdates[`allocatedQty${suffix}`] = Number(roll.issuedMeter);
 
@@ -444,10 +479,11 @@ const MaterialIssueForm = () => {
         console.warn("⚠️ No order found with jobCardNo:", formData.jobCardNo);
       }
 
-      alert("Material issued successfully! Job status updated to 'Allocated'.");
+      // alert("Material issued successfully! Job status updated to 'Allocated'.");
+      setShowPopup(true);
       setSelectedRolls([]);
 
-      setTimeout(() => navigate("/issue_material"), 900);
+      setTimeout(() => navigate("/issue_material"), 1200);
     } catch (err) {
       console.error("Error issuing material:", err);
       alert("Error issuing material: " + err.message);
@@ -499,187 +535,200 @@ const MaterialIssueForm = () => {
      UI COMPONENT
   --------------------------------------------------------------- */
   return (
-    <div className="space-y-4 ">
-      <h1>Issue Material</h1>
-      <hr className="mb-6" />
-
-      <div className="py-16 bg-[#F6F6F6] rounded-2xl container space-y-8">
-        <div className="grid md:grid-cols-2 gap-8 ">
-          <Input
-            label="Job Card No"
-            name="jobCardNo"
-            value={formData.jobCardNo}
-            onChange={handleChange}
-            readOnly
-          />
-          <Input
-            label="Job Name"
-            name="jobName"
-            value={formData.jobName}
-            onChange={handleChange}
-            readOnly
-          />
-          <Input
-            label="Paper Size"
-            name="paperSize"
-            value={formData.paperSize}
-            onChange={handleChange}
-          />
-          <Input
-            label="Remaining Material"
-            name="requestedMaterial"
-            value={formData.requestedMaterial}
-            onChange={handleChange}
-            readOnly
-          />
-
-          <select
-            className="inputStyle"
-            value={jobPaper}
-            onChange={(e) => {
-              setJobPaper(e.target.value);
-              setSelectedRolls([]);
-            }}
-          >
-            <option value="">Select Material Type</option>
-            {materialTypeList.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className="inputStyle"
-            value={paperProductCode}
-            onChange={(e) => {
-              setPaperProductCode(e.target.value);
-              setSelectedRolls([]);
-            }}
-          >
-            <option value="">Select Company Name</option>
-            {paperProductCodeData.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-
-          <Input
-            label="Request Date"
-            type="date"
-            name="requestDate"
-            value={formData.requestDate}
-            onChange={handleChange}
-          />
-          <Input
-            label="Allote Date"
-            type="date"
-            name="alloteDate"
-            value={formData.alloteDate}
-            onChange={handleChange}
-          />
+    <>
+      <div className="space-y-4 ">
+        <div className="flex justify-between items-baseline">
+          <h1>Issue Material</h1>
+          <BackButton />
         </div>
 
-        <hr />
+        <hr className="mb-6" />
 
-        {loadingMaterials ? (
-          <div className="text-center py-8">
-            <p className="text-lg">Loading materials...</p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            <h2 className="flex items-center ">
-              <span>
-                <FaCaretRight className="text-2xl" />
-              </span>
-              Leftover (LO)
-            </h2>
-            <MaterialTable
-              title="Leftover (LO)"
-              data={LO}
-              type="LO"
-              onSelect={handleSelect}
-              selected={selectedRolls}
-              onMeterChange={handleMeterChange}
-              formatDate={formatDate}
+        <div className="py-16 bg-[#F6F6F6] rounded-2xl container space-y-8">
+          <div className="grid md:grid-cols-2 gap-8 ">
+            <Input
+              label="Job Card No"
+              name="jobCardNo"
+              value={formData.jobCardNo}
+              onChange={handleChange}
+              readOnly
             />
-            <h2 className="flex items-center ">
-              <span>
-                <FaCaretRight className="text-2xl" />
-              </span>
-              Work In Process (WIP)
-            </h2>
-            <MaterialTable
-              title="Work In Process (WIP)"
-              data={WIP}
-              type="WIP"
-              onSelect={handleSelect}
-              selected={selectedRolls}
-              onMeterChange={handleMeterChange}
-              formatDate={formatDate}
+            <Input
+              label="Job Name"
+              name="jobName"
+              value={formData.jobName}
+              onChange={handleChange}
+              readOnly
             />
-            <h2 className="flex items-center ">
-              <span>
-                <FaCaretRight className="text-2xl" />
-              </span>
-              Raw Material
-            </h2>
-            <MaterialTable
-              title="Raw Material"
-              data={RAW}
-              type="RAW"
-              onSelect={handleSelect}
-              selected={selectedRolls}
-              onMeterChange={handleMeterChange}
-              formatDate={formatDate}
+            <Input
+              label="Paper Size"
+              name="paperSize"
+              value={formData.paperSize}
+              onChange={handleChange}
             />
-          </div>
-        )}
+            <Input
+              label="Remaining Material"
+              name="requestedMaterial"
+              value={formData.requestedMaterial}
+              onChange={handleChange}
+              readOnly
+            />
 
-        <div className="shadow-xl rounded-2xl bg-white overflow-x-auto">
-          <table className="w-full border text-xl text-center">
-            <thead className="">
-              <tr className="bg-gradient-to-t from-[#102F5C] to-[#3566AD] text-white">
-                <th className="p-2 border">Material Type</th>
-                <th className="p-2 border">Paper Code</th>
-                <th className="p-2 border">Issued Meter</th>
-              </tr>
-            </thead>
-            <tbody className="text-base">
-              {selectedRolls.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="p-4 text-gray-500">
-                    No materials selected
-                  </td>
+            <select
+              className="inputStyle"
+              value={jobPaper}
+              onChange={(e) => {
+                setJobPaper(e.target.value);
+                setSelectedRolls([]);
+              }}
+            >
+              <option value="">Select Material Type</option>
+              {materialTypeList.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              className="inputStyle"
+              value={paperProductCode}
+              onChange={(e) => {
+                setPaperProductCode(e.target.value);
+                setSelectedRolls([]);
+              }}
+            >
+              <option value="">Select Company Name</option>
+              {paperProductCodeData.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+
+            <Input
+              label="Request Date"
+              type="date"
+              name="requestDate"
+              value={formData.requestDate}
+              onChange={handleChange}
+            />
+            <Input
+              label="Allote Date"
+              type="date"
+              name="alloteDate"
+              value={formData.alloteDate}
+              onChange={handleChange}
+            />
+          </div>
+
+          <hr />
+
+          {loadingMaterials ? (
+            <div className="text-center py-8">
+              <p className="text-lg">Loading materials...</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <h2 className="flex items-center ">
+                <span>
+                  <FaCaretRight className="text-2xl" />
+                </span>
+                Leftover (LO)
+              </h2>
+              <MaterialTable
+                title="Leftover (LO)"
+                data={LO}
+                type="LO"
+                onSelect={handleSelect}
+                selected={selectedRolls}
+                onMeterChange={handleMeterChange}
+                formatDate={formatDate}
+              />
+              <h2 className="flex items-center ">
+                <span>
+                  <FaCaretRight className="text-2xl" />
+                </span>
+                Work In Process (WIP)
+              </h2>
+              <MaterialTable
+                title="Work In Process (WIP)"
+                data={WIP}
+                type="WIP"
+                onSelect={handleSelect}
+                selected={selectedRolls}
+                onMeterChange={handleMeterChange}
+                formatDate={formatDate}
+              />
+              <h2 className="flex items-center ">
+                <span>
+                  <FaCaretRight className="text-2xl" />
+                </span>
+                Raw Material
+              </h2>
+              <MaterialTable
+                title="Raw Material"
+                data={RAW}
+                type="RAW"
+                onSelect={handleSelect}
+                selected={selectedRolls}
+                onMeterChange={handleMeterChange}
+                formatDate={formatDate}
+              />
+            </div>
+          )}
+
+          <div className="shadow-xl rounded-2xl bg-white overflow-x-auto">
+            <table className="w-full border text-xl text-center">
+              <thead className="">
+                <tr className="bg-gradient-to-t from-[#102F5C] to-[#3566AD] text-white">
+                  <th className="p-2 border">Material Type</th>
+                  <th className="p-2 border">Paper Code</th>
+                  <th className="p-2 border">Issued Meter</th>
                 </tr>
-              ) : (
-                selectedRolls.map((item) => (
-                  <tr key={item.id}>
-                    <td className="p-2 border">{item.materialType}</td>
-                    <td className="p-2 border">{item.paperCode}</td>
-                    <td className="p-2 border">{item.issuedMeter}</td>
+              </thead>
+              <tbody className="text-base">
+                {selectedRolls.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="p-4 text-gray-500">
+                      No materials selected
+                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
+                ) : (
+                  selectedRolls.map((item) => (
+                    <tr key={item.id}>
+                      <td className="p-2 border">{item.materialType}</td>
+                      <td className="p-2 border">{item.paperCode}</td>
+                      <td className="p-2 border">{item.issuedMeter}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
 
-            <tfoot>
-              <tr className="font-bold bg-gradient-to-t from-[#102F5C] to-[#3566AD] text-white">
-                <td className="p-2 border" colSpan={2}>
-                  Total Meter
-                </td>
-                <td className="p-2 border">{totalIssued}</td>
-              </tr>
-            </tfoot>
-          </table>
+              <tfoot>
+                <tr className="font-bold bg-gradient-to-t from-[#102F5C] to-[#3566AD] text-white">
+                  <td className="p-2 border" colSpan={2}>
+                    Total Meter
+                  </td>
+                  <td className="p-2 border">{totalIssued}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <PrimaryBtn onClick={handleIssue} className="w-full">
+            Issue Material
+          </PrimaryBtn>
         </div>
-
-        <PrimaryBtn onClick={handleIssue} className="w-full">
-          Issue Material
-        </PrimaryBtn>
       </div>
-    </div>
+      {showPopup && (
+        <SuccessPopup
+          message="Material issued successfully!"
+          show={showPopup}
+          onClose={() => setShowPopup(false)}
+        />
+      )}
+    </>
   );
 };
 
@@ -730,7 +779,10 @@ const MaterialTable = ({
 
           {title.includes("WIP") && <th className="p-2 border">Stage</th>}
           {(title.includes("WIP") || title.includes("LO")) && (
-            <th className="p-2 border">Source Job</th>
+            <>
+              <th className="p-2 border">Source Job</th>
+              <th className="p-2 border">Customer Name</th>
+            </>
           )}
 
           <th className="p-2 border">Rack</th>
@@ -742,7 +794,7 @@ const MaterialTable = ({
         {data.length === 0 ? (
           <tr>
             <td
-              colSpan={title.includes("WIP") ? 8 : title.includes("LO") ? 7 : 6}
+              colSpan={title.includes("WIP") ? 9 : title.includes("LO") ? 8 : 6}
               className="p-4 text-gray-500"
             >
               No materials available
@@ -771,9 +823,14 @@ const MaterialTable = ({
                   <td className="p-2 border capitalize">{roll.stage}</td>
                 )}
                 {(title.includes("WIP") || title.includes("LO")) && (
-                  <td className="p-2 border">
-                    {roll.sourceJobCardNo || "N/A"}
-                  </td>
+                  <>
+                    <td className="p-2 border">
+                      {roll.sourceJobCardNo || "N/A"}
+                    </td>
+                    <td className="p-2 border">
+                      {roll.customerName || "-"}
+                    </td>
+                  </>
                 )}
 
                 <td className="p-2 border">{roll.rack}</td>

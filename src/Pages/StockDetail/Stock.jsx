@@ -19,6 +19,15 @@ const StockReport = () => {
     return num ? parseFloat(num).toString() : "0";
   };
 
+  // Helper function to safely extract value from potential objects
+  const safeValue = (val) => {
+    if (val === null || val === undefined) return "-";
+    if (typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
+      return val.value || val.label || "-";
+    }
+    return val;
+  };
+
   useEffect(() => {
     const fetchStockData = async () => {
       try {
@@ -201,10 +210,10 @@ const StockReport = () => {
           return {
             id: material.id,
             date: materialDate,
-            paperCode: material.paperCode || "-",
-            paperProductCode: material.paperProductCode || "-",
-            materialCategory: material.materialCategory || "RAW",
-            jobPaper: material.jobPaper || "-",
+            paperCode: safeValue(material.paperCode) || "-",
+            paperProductCode: safeValue(material.paperProductCode) || "-",
+            materialCategory: safeValue(material.materialCategory) || "RAW",
+            jobPaper: safeValue(material.jobPaper) || "-",
             purchased: isPurchased ? material.totalRunningMeter || 0 : 0,
             created: isCreated ? material.totalRunningMeter || 0 : 0,
             used: totalUsed,
@@ -212,13 +221,12 @@ const StockReport = () => {
             lo: totalLO,
             wip: totalWIP,
             available: material.availableRunningMeter || 0,
-            sourceJobCardNo: material.sourceJobCardNo || "-",
-            sourceStage: material.sourceStage || "-",
-            usedRawPaperCodes: usedRawPaperCodes, // Array of RAW paper codes used
+            sourceJobCardNo: safeValue(material.sourceJobCardNo) || "-",
+            sourceStage: safeValue(material.sourceStage) || "-",
+            usedRawPaperCodes: usedRawPaperCodes,
             isActive: material.isActive !== false,
-            customerName: customerName,
-            paperSize: material.paperSize || "-",
-            numberOfRolls: material.numberOfRolls || 0,
+            customerName: safeValue(customerName),
+            paperSize: safeValue(material.paperSize) || "-",
           };
         });
 
@@ -335,7 +343,6 @@ const StockReport = () => {
       "Category",
       "Customer Name",
       "Paper Size",
-      "No. of Rolls",
       "Purchased",
       "Created",
       "Used",
@@ -355,7 +362,6 @@ const StockReport = () => {
       item.materialCategory,
       item.customerName,
       item.paperSize,
-      item.numberOfRolls,
       formatNumber(item.purchased),
       formatNumber(item.created),
       formatNumber(item.used),
@@ -402,7 +408,7 @@ const StockReport = () => {
           </div>
         </div>
         <div className="bg-green-100 p-4 rounded-lg shadow">
-          <div className="text-xs text-gray-600">Total Used (Final)</div>
+          <div className="text-xs text-gray-600">Total F.G.</div>
           <div className="text-2xl font-bold text-green-600">
             {formatNumber(summaryTotals.used)}{" "}
             <span className="text-sm">meter</span>
@@ -547,10 +553,9 @@ const StockReport = () => {
               <th className="px-3 py-3 border-r-2">Category</th>
               <th className="px-3 py-3 border-r-2">Customer</th>
               <th className="px-3 py-3 border-r-2">Paper Size</th>
-              <th className="px-3 py-3 border-r-2">Rolls</th>
               <th className="px-3 py-3 border-r-2 bg-blue-900">Purchased</th>
               <th className="px-3 py-3 border-r-2 bg-blue-900">Created</th>
-              <th className="px-3 py-3 border-r-2">Used</th>
+              <th className="px-3 py-3 border-r-2">F.G.</th>
               <th className="px-3 py-3 border-r-2">Waste</th>
               <th className="px-3 py-3 border-r-2">LO</th>
               <th className="px-3 py-3 border-r-2">WIP</th>
@@ -588,7 +593,6 @@ const StockReport = () => {
                 </td>
                 <td className="border px-3 py-2 text-sm">{item.customerName}</td>
                 <td className="border px-3 py-2 text-sm">{item.paperSize}</td>
-                <td className="border px-3 py-2 text-sm">{item.numberOfRolls || "-"}</td>
                 <td className="border px-3 py-2 text-sm font-semibold bg-blue-50">
                   {item.purchased > 0 ? formatNumber(item.purchased) : "-"}
                 </td>
@@ -621,7 +625,7 @@ const StockReport = () => {
 
             {currentItems.length === 0 && (
               <tr>
-                <td colSpan="17" className="text-center p-4 text-gray-500">
+                <td colSpan="16" className="text-center p-4 text-gray-500">
                   No stock data found
                 </td>
               </tr>
@@ -630,7 +634,7 @@ const StockReport = () => {
 
           <tfoot className="bg-gray-100 font-bold">
             <tr className="text-center">
-              <td colSpan="8" className="border px-3 py-3 text-right">
+              <td colSpan="7" className="border px-3 py-3 text-right">
                 TOTALS:
               </td>
               <td className="border px-3 py-3 text-blue-600 bg-blue-50">
@@ -718,15 +722,15 @@ const StockReport = () => {
           <li>
             <strong>Paper Code History Filter:</strong> Select a RAW paper code to see its complete journey - the original RAW material purchase and all LO/WIP materials that were created from it during production.
           </li>
-          <li className="bg-yellow-50 p-2 rounded mt-2">
+          {/* <li className="bg-yellow-50 p-2 rounded mt-2">
             <strong>💡 Formula for LO/WIP:</strong> Used = Created - Waste - LO
             - WIP. This prevents double-counting as material flows through
             stages.
-          </li>
+          </li> */}
         </ul>
-        </div>
       </div>
-        );
+    </div>
+  );
 };
 
 export default StockReport;
