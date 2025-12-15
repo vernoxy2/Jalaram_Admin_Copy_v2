@@ -105,7 +105,7 @@ const MaterialIssueForm = () => {
   }, [id]);
 
   /* -------------------------------------------------------------
-     2) FETCH MATERIALS WITH SORTING BY CREATED DATE & TIME (OLDEST FIRST)
+     2) FETCH MATERIALS WITH CUSTOMER NAME & SORTING BY CREATED DATE & TIME (OLDEST FIRST)
   --------------------------------------------------------------- */
   useEffect(() => {
     if (!paperProductCode || !jobPaper || !formData.paperSize) return;
@@ -116,6 +116,16 @@ const MaterialIssueForm = () => {
       try {
         const stringPaperSize = String(formData.paperSize);
         const numberPaperSize = Number(formData.paperSize);
+
+        // ✅ Fetch all orders first to map jobCardNo to customerName
+        const ordersSnapshot = await getDocs(collection(db, "ordersTest"));
+        const ordersMap = {};
+        ordersSnapshot.docs.forEach((doc) => {
+          const orderData = doc.data();
+          if (orderData.jobCardNo) {
+            ordersMap[orderData.jobCardNo] = orderData.customerName || "-";
+          }
+        });
 
         const baseConditions = [
           where("paperProductCode", "==", paperProductCode),
@@ -174,15 +184,19 @@ const MaterialIssueForm = () => {
 
         const loSnapshot = await getDocs(loQuery);
         const loList = loSnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            paperCode: doc.data().paperCode,
-            availableMeter: doc.data().availableRunningMeter || 0,
-            rack: doc.data().rack || "N/A",
-            sourceJobCardNo: doc.data().sourceJobCardNo,
-            createdAt: doc.data().createdAt,
-          }))
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              paperCode: data.paperCode,
+              availableMeter: data.availableRunningMeter || 0,
+              rack: data.rack || "N/A",
+              sourceJobCardNo: data.sourceJobCardNo,
+              customerName: ordersMap[data.sourceJobCardNo] || "-", // ✅ Add customer name
+              createdAt: data.createdAt,
+            };
+          })
           .sort(
             (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
           );
@@ -196,16 +210,20 @@ const MaterialIssueForm = () => {
 
         const wipSnapshot = await getDocs(wipQuery);
         const wipList = wipSnapshot.docs
-          .map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-            paperCode: doc.data().paperCode,
-            availableMeter: doc.data().availableRunningMeter || 0,
-            rack: doc.data().rack || "N/A",
-            stage: doc.data().sourceStage || "Unknown",
-            sourceJobCardNo: doc.data().sourceJobCardNo,
-            createdAt: doc.data().createdAt,
-          }))
+          .map((doc) => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              paperCode: data.paperCode,
+              availableMeter: data.availableRunningMeter || 0,
+              rack: data.rack || "N/A",
+              stage: data.sourceStage || "Unknown",
+              sourceJobCardNo: data.sourceJobCardNo,
+              customerName: ordersMap[data.sourceJobCardNo] || "-", // ✅ Add customer name
+              createdAt: data.createdAt,
+            };
+          })
           .sort(
             (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
           );
@@ -214,19 +232,9 @@ const MaterialIssueForm = () => {
         setLO(loList);
         setWIP(wipList);
 
-        // ✅ Debug log to verify sorting (remove after testing)
-        console.log("✅ RAW Materials (sorted by createdAt - oldest first):");
-        rawList.forEach((item, index) => {
-          console.log(
-            `  ${index + 1}. ${item.paperCode} - ${
-              item.createdAt?.seconds
-                ? new Date(item.createdAt.seconds * 1000).toLocaleString(
-                    "en-GB"
-                  )
-                : "N/A"
-            }`
-          );
-        });
+        // ✅ Debug log to verify customer names
+        console.log("✅ LO Materials with Customer Names:", loList);
+        console.log("✅ WIP Materials with Customer Names:", wipList);
       } catch (error) {
         console.error("Error fetching materials:", error);
       } finally {
@@ -437,6 +445,12 @@ const MaterialIssueForm = () => {
 
           // ✅ Store individual paperCode, not comma-separated list
           materialUpdates[`paperProductNo${suffix}`] = roll.paperCode;
+
+          // ✅ Store jobPaper in {label, value} format for this specific roll
+          materialUpdates[`jobPaper${suffix}`] = {
+            label: roll.jobPaper || "-",
+            value: roll.jobPaper || "-",
+          };
 
           // ✅ Store individual issuedMeter for this specific roll
           materialUpdates[`allocatedQty${suffix}`] = Number(roll.issuedMeter);
@@ -765,7 +779,10 @@ const MaterialTable = ({
 
           {title.includes("WIP") && <th className="p-2 border">Stage</th>}
           {(title.includes("WIP") || title.includes("LO")) && (
-            <th className="p-2 border">Source Job</th>
+            <>
+              <th className="p-2 border">Source Job</th>
+              <th className="p-2 border">Customer Name</th>
+            </>
           )}
 
           <th className="p-2 border">Rack</th>
@@ -777,7 +794,7 @@ const MaterialTable = ({
         {data.length === 0 ? (
           <tr>
             <td
-              colSpan={title.includes("WIP") ? 8 : title.includes("LO") ? 7 : 6}
+              colSpan={title.includes("WIP") ? 9 : title.includes("LO") ? 8 : 6}
               className="p-4 text-gray-500"
             >
               No materials available
@@ -806,9 +823,14 @@ const MaterialTable = ({
                   <td className="p-2 border capitalize">{roll.stage}</td>
                 )}
                 {(title.includes("WIP") || title.includes("LO")) && (
-                  <td className="p-2 border">
-                    {roll.sourceJobCardNo || "N/A"}
-                  </td>
+                  <>
+                    <td className="p-2 border">
+                      {roll.sourceJobCardNo || "N/A"}
+                    </td>
+                    <td className="p-2 border">
+                      {roll.customerName || "-"}
+                    </td>
+                  </>
                 )}
 
                 <td className="p-2 border">{roll.rack}</td>

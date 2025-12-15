@@ -408,7 +408,7 @@ const StockReport = () => {
           </div>
         </div>
         <div className="bg-green-100 p-4 rounded-lg shadow">
-          <div className="text-xs text-gray-600">Total Used (Final)</div>
+          <div className="text-xs text-gray-600">Total F.G.</div>
           <div className="text-2xl font-bold text-green-600">
             {formatNumber(summaryTotals.used)}{" "}
             <span className="text-sm">meter</span>
@@ -555,7 +555,7 @@ const StockReport = () => {
               <th className="px-3 py-3 border-r-2">Paper Size</th>
               <th className="px-3 py-3 border-r-2 bg-blue-900">Purchased</th>
               <th className="px-3 py-3 border-r-2 bg-blue-900">Created</th>
-              <th className="px-3 py-3 border-r-2">Used</th>
+              <th className="px-3 py-3 border-r-2">F.G.</th>
               <th className="px-3 py-3 border-r-2">Waste</th>
               <th className="px-3 py-3 border-r-2">LO</th>
               <th className="px-3 py-3 border-r-2">WIP</th>
@@ -722,11 +722,11 @@ const StockReport = () => {
           <li>
             <strong>Paper Code History Filter:</strong> Select a RAW paper code to see its complete journey - the original RAW material purchase and all LO/WIP materials that were created from it during production.
           </li>
-          <li className="bg-yellow-50 p-2 rounded mt-2">
+          {/* <li className="bg-yellow-50 p-2 rounded mt-2">
             <strong>💡 Formula for LO/WIP:</strong> Used = Created - Waste - LO
             - WIP. This prevents double-counting as material flows through
             stages.
-          </li>
+          </li> */}
         </ul>
       </div>
     </div>
