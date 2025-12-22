@@ -33,6 +33,7 @@ const MaterialIssueForm = () => {
     requestedMaterial: "",
     requestDate: "",
     alloteDate: "",
+    customerName: "",
   });
 
   const [jobPaper, setJobPaper] = useState("");
@@ -83,6 +84,7 @@ const MaterialIssueForm = () => {
             requestedMaterial: remaining > 0 ? remaining : 0,
             requestDate: requestDate,
             alloteDate: new Date().toISOString().split("T")[0],
+            customerName: data.customerName || "",
           });
 
           setJobPaper(data.jobPaper?.value || data.jobPaper || "");
@@ -172,7 +174,7 @@ const MaterialIssueForm = () => {
             (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
           );
 
-        // ✅ LO Materials Query
+        // ✅ LO Materials Query (No customer filtering - can be used for any customer)
         const loQuery = query(
           collection(db, "materials"),
           ...baseConditions,
@@ -198,7 +200,7 @@ const MaterialIssueForm = () => {
             (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
           );
 
-        // ✅ WIP Materials Query
+        // ✅ WIP Materials Query (Filter by customer name)
         const wipQuery = query(
           collection(db, "materials"),
           ...baseConditions,
@@ -221,6 +223,14 @@ const MaterialIssueForm = () => {
               createdAt: data.createdAt,
             };
           })
+          // ✅ Filter WIP by customer name - only show materials from same customer
+          .filter((wip) => {
+            const wipCustomerName = wip.customerName.toLowerCase().trim();
+            const currentCustomerName = (formData.customerName || "")
+              .toLowerCase()
+              .trim();
+            return wipCustomerName === currentCustomerName;
+          })
           .sort(
             (a, b) => getTimestamp(a.createdAt) - getTimestamp(b.createdAt)
           );
@@ -236,7 +246,7 @@ const MaterialIssueForm = () => {
     };
 
     fetchMaterials();
-  }, [paperProductCode, jobPaper, formData.paperSize]);
+  }, [paperProductCode, jobPaper, formData.paperSize, formData.customerName]);
 
   /* -------------------------------------------------------------
      3) HELPER FUNCTION TO FORMAT DATE (DISPLAY ONLY)
@@ -633,6 +643,18 @@ const MaterialIssueForm = () => {
         <hr className="mb-6" />
 
         <div className="py-16 bg-[#F6F6F6] rounded-2xl container space-y-8">
+          {/* Customer Name Display - Prominent */}
+          {/* {formData.customerName && (
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-600 p-4 rounded-lg">
+              <h3 className="text-lg font-semibold text-blue-900">
+                Customer: <span className="text-blue-700">{formData.customerName}</span>
+              </h3>
+              <p className="text-sm text-blue-600 mt-1">
+                ℹ️ WIP materials are filtered for this customer only
+              </p>
+            </div>
+          )} */}
+
           <div className="grid md:grid-cols-2 gap-8 ">
             <Input
               label="Job Card No"
@@ -646,6 +668,13 @@ const MaterialIssueForm = () => {
               name="jobName"
               value={formData.jobName}
               onChange={handleChange}
+              readOnly
+            />
+            <Input
+              label="Customer Name"
+              name="customerName"
+              value={formData.customerName}
+              // onChange={handleChange}
               readOnly
             />
             <Input
@@ -960,9 +989,7 @@ const MaterialTable = ({
                       <td className="p-2 border">
                         {roll.sourceJobCardNo || "N/A"}
                       </td>
-                      <td className="p-2 border">
-                        {roll.customerName || "-"}
-                      </td>
+                      <td className="p-2 border">{roll.customerName || "-"}</td>
                     </>
                   )}
 

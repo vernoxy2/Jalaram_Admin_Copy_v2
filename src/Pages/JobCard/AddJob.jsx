@@ -316,6 +316,7 @@ const AddJob = () => {
         requestType: "Initial",
         createdAt: serverTimestamp(),
         createdBy: "Admin",
+        customerName,
       };
 
       if (isEdit && id) {
