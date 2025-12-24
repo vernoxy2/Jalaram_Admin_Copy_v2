@@ -383,22 +383,22 @@ const Dashboard = () => {
 
   const monthOptions = generateMonthOptions();
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-100 mx-auto mb-6"></div>
-            <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-blue-600 absolute top-0 left-1/2 transform -translate-x-1/2"></div>
-          </div>
-          <p className="text-gray-700 font-semibold text-lg">
-            Loading Dashboard
-          </p>
-          <p className="text-gray-500 text-sm mt-1">Please wait...</p>
-        </div>
-      </div>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-screen bg-white">
+  //       <div className="text-center">
+  //         <div className="relative">
+  //           <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-100 mx-auto mb-6"></div>
+  //           <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-blue-600 absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+  //         </div>
+  //         <p className="text-gray-700 font-semibold text-lg">
+  //           Loading Dashboard
+  //         </p>
+  //         <p className="text-gray-500 text-sm mt-1">Please wait...</p>
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="min-h-screen bg-white">
