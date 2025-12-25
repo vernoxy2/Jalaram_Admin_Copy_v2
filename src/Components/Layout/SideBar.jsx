@@ -27,23 +27,30 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
   return (
     <div className="flex relative">
-      <img src={Right} alt="" className="absolute rotate-180 bottom-0" />
+      <img src={Right} alt="" className="absolute rotate-180 bottom-0 whitespace-nowrap trax-" />
 
       {/* Desktop Sidebar */}
       <div
-        className={`hidden md:flex flex-col h-full  ${
-          isOpen ? "w-96" : "w-16 "
-        } bg-gradient-to-b from-[#102F5C] to-[#3566AD] text-white transition-all duration-300 `}
+        className={`hidden md:flex flex-col h-full bg-gradient-to-b from-[#102F5C] to-[#3566AD]
+    text-white transition-all duration-500 ease-in-out
+    ${isOpen ? "w-96" : "w-16"}
+  `}
       >
-        <div className="flex items-center justify-between p-4 border-gray-700">
-          {isOpen && (
-            <Link to={"/"}>
-              <h1 className="text-white  delay-100">Shree Jalaram </h1>
-            </Link>
-          )}
+        {/* Header */}
+        <div className="flex items-center justify-between p-4">
+          <Link to="/" className="overflow-hidden">
+            <h1
+              className={`text-white whitespace-nowrap transition-all duration-300
+          ${isOpen ? "opacity-100 " : "opacity-0 "}
+        `}
+            >
+              Shree Jalaram
+            </h1>
+          </Link>
+
           <button
             onClick={toggleSidebar}
-            className=" p-1.5 bg-white rounded-lg hover:bg-white/80 text-black"
+            className="p-1.5 bg-white rounded-lg xl:hover:bg-white/80 active:bg-white/80 text-black "
           >
             {isOpen ? (
               <FaCaretLeft className="text-2xl text-primary" />
@@ -52,18 +59,30 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
             )}
           </button>
         </div>
-        <nav className="flex flex-col mt-10 gap-1 px-2 ml-10 mr-6">
+
+        {/* Menu */}
+        <nav
+          className={`flex flex-col mt-10 gap-1 px-2 ml-10 mr-6 transition-all duration-500 ease-in-out whitespace-nowrap
+      ${
+        isOpen
+          ? "opacity-100 visible pointer-events-auto"
+          : "opacity-0 invisible pointer-events-none"
+      }
+    `}
+        >
           {menuItems.map((item) => (
             <Link
               key={item.name}
               to={item.path}
-              className={`flex text-xl font-bold items-center gap-3 px-6 py-3 rounded-md transition-colors duration-200 ${
-                isOpen && currentPath === item.path
-                  ? "bg-white text-[#3668B1]"
-                  : "hover:bg-white hover:text-[#3668B1]"
-              }`}
+              className={`flex items-center gap-3 px-6 py-3 rounded-md text-xl font-bold transition-all duration-200
+          ${
+            currentPath === item.path
+              ? "bg-white text-[#3668B1]"
+              : "hover:bg-white hover:text-[#3668B1]"
+          }
+        `}
             >
-              {isOpen && item.name}
+              {item.name}
             </Link>
           ))}
         </nav>
@@ -71,7 +90,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
 
       {/* Mobile Sidebar */}
       <div
-        className={`fixed top-0 left-0 h-full bg-gradient-to-b from-[#102F5C] to-[#3566AD] text-white pl-8 z-50 transition-transform duration-300 md:hidden ${
+        className={`fixed top-0 left-0 h-full bg-gradient-to-b from-[#102F5C] to-[#3566AD] text-white pl-8 z-50 transition-transform duration-500 md:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         } w-80`}
       >
@@ -80,7 +99,7 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
             <h1 className="text-white  delay-100">Shree Jalaram </h1>
           </Link>
 
-          <IoClose onClick={() => setMobileOpen(false)} className="text-2xl"/>
+          <IoClose onClick={() => setMobileOpen(false)} className="text-2xl" />
         </div>
         <nav className="flex flex-col mt-4 gap-2 px-2">
           {menuItems.map((item) => (
