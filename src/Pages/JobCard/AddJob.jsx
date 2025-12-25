@@ -55,7 +55,7 @@ const FloatingInput = ({
   const hasValue = value !== "" && value !== null && value !== undefined;
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       <input
         type={type}
         value={value}
@@ -64,7 +64,7 @@ const FloatingInput = ({
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
         readOnly={readOnly}
-        className={`inputStyle peer ${error ? "border-red-500" : ""} ${
+        className={`inputStyle  peer  ${error ? "border-red-500" : ""} ${
           readOnly ? "bg-gray-50 cursor-not-allowed" : ""
         }`}
       />
@@ -594,17 +594,59 @@ const AddJob = () => {
             />
 
             {/* Job Name */}
-            <FloatingInput
-              type="text"
-              name="jobName"
-              label="Job Name *"
-              value={jobName}
-              onChange={(e) => {
-                setJobName(e.target.value);
-                setErrors((prev) => ({ ...prev, jobName: "" }));
-              }}
-              error={errors.jobName}
-            />
+            <div className="relative w-full">
+              <div className="flex items-center gap-2 w-full">
+                <FloatingInput
+                  type="text"
+                  name="jobName"
+                  label="Job Name *"
+                  value={jobName}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    setJobName(text);
+                    setSelectedJob(null);
+                    setErrors((prev) => ({ ...prev, jobName: "" }));
+
+                    if (text.length >= 2) {
+                      searchJobNames(text);
+                    } else {
+                      setSearchResults([]);
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  error={errors.jobName}
+                />
+                {selectedJob && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedJob(null);
+                      setJobName("");
+                      setSearchResults([]);
+                      setShowSuggestions(false);
+                      clearAutoFilledData();
+                    }}
+                    className="text-red-600 text-xl font-bold hover:text-red-800"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {/* ✅ Autocomplete Dropdown */}
+              {showSuggestions && searchResults.length > 0 && !selectedJob && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {searchResults.map((item, index) => (
+                    <div
+                      key={index}
+                      onClick={() => handleSelectJob(item)}
+                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-200 last:border-b-0"
+                    >
+                      <p className="text-sm text-gray-800">{item.jobName}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Job Card No */}
             <FloatingInput
