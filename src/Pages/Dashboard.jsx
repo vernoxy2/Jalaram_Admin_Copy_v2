@@ -32,7 +32,7 @@ const StatCard = ({
     >
       <Icon className={`text-2xl ${iconColor}`} />
     </div>
-    <p className="text-gray-600 text-sm font-medium mb-1">{title}</p>
+    <p className="text-gray-600 font-medium mb-1">{title}</p>
     <h1 className={`${textColor} font-bold`}>
       {value.toLocaleString()}{" "}
       <span className="text-xl font-semibold text-gray-500">{unit}</span>
@@ -47,12 +47,10 @@ const ProgressBar = ({ label, value, total, color, lightColor }) => {
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="font-medium text-gray-700 text-sm">{label}</span>
+        <span className="font-medium text-gray-700 ">{label}</span>
         <div className="flex items-center gap-2">
           <span className="font-bold text-gray-900">{value}</span>
-          <span className="text-sm text-gray-500">
-            ({percentage.toFixed(1)}%)
-          </span>
+          <span className=" text-gray-500">({percentage.toFixed(1)}%)</span>
         </div>
       </div>
       <div className={`w-full ${lightColor} rounded-full h-3`}>
@@ -517,9 +515,7 @@ const Dashboard = () => {
               <div className="bg-gray-100 w-12 h-12 rounded-lg flex items-center justify-center mb-3">
                 <FaClipboardList className="text-2xl text-gray-600" />
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">
-                Total Jobs
-              </p>
+              <p className="text-gray-600  font-medium mb-1">Total Jobs</p>
               <p className="text-gray-800 text-3xl font-bold">{totalJobs}</p>
             </div>
 
@@ -527,27 +523,23 @@ const Dashboard = () => {
               <div className="bg-purple-100 w-12 h-12 rounded-lg flex items-center justify-center mb-3">
                 <FaPrint className="text-2xl text-purple-600" />
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">Printing</p>
-              <p className="text-purple-600 text-3xl font-bold">
-                {printingJobs}
-              </p>
+              <p className="text-gray-600 font-medium mb-1">Printing</p>
+              <p className="text-purple-600 text-3xl font-bold">{printingJobs}</p>
             </div>
 
             <div className="bg-white rounded-lg p-5 border border-gray-200">
               <div className="bg-orange-100 w-12 h-12 rounded-lg flex items-center justify-center mb-3">
                 <FaBoxes className="text-2xl text-orange-600" />
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">Punching</p>
-              <p className="text-orange-600 text-3xl font-bold">
-                {punchingJobs}
-              </p>
+              <p className="text-gray-600 font-medium mb-1">Punching</p>
+              <p className="text-orange-600 text-3xl font-bold">{punchingJobs}</p>
             </div>
 
             <div className="bg-white rounded-lg p-5 border border-gray-200">
               <div className="bg-teal-100 w-12 h-12 rounded-lg flex items-center justify-center mb-3">
                 <FaCut className="text-2xl text-teal-600" />
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">Slitting</p>
+              <p className="text-gray-600  font-medium mb-1">Slitting</p>
               <p className="text-teal-600 text-3xl font-bold">{slittingJobs}</p>
             </div>
 
@@ -555,24 +547,16 @@ const Dashboard = () => {
               <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center mb-3">
                 <FaCheckCircle className="text-2xl text-green-600" />
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">
-                Completed
-              </p>
-              <p className="text-green-600 text-3xl font-bold">
-                {completedJobs}
-              </p>
+              <p className="text-gray-600  font-medium mb-1">Completed</p>
+              <p className="text-green-600 text-3xl font-bold">{completedJobs}</p>
             </div>
 
             <div className="bg-white rounded-lg p-5 border border-gray-200">
               <div className="bg-yellow-100 w-12 h-12 rounded-lg flex items-center justify-center mb-3">
                 <FaHourglassHalf className="text-2xl text-yellow-600" />
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">
-                In Progress
-              </p>
-              <p className="text-yellow-600 text-3xl font-bold">
-                {pendingJobs}
-              </p>
+              <p className="text-gray-600  font-medium mb-1">In Progress</p>
+              <p className="text-yellow-600 text-3xl font-bold">{pendingJobs}</p>
             </div>
           </div>
         </div>
@@ -690,16 +674,12 @@ const Dashboard = () => {
                 <div className="bg-yellow-100 w-12 h-12 rounded-lg flex items-center justify-center">
                   <FaHourglassHalf className="text-yellow-600 text-2xl" />
                 </div>
-                <span className="text-xs font-semibold px-3 py-1 bg-yellow-200 text-yellow-700 rounded-full">
+                <span className=" font-semibold px-3 py-1 bg-yellow-200 text-yellow-700 rounded-full">
                   PENDING
                 </span>
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">
-                Pending Requests
-              </p>
-              <p className="text-yellow-600 text-4xl font-bold">
-                {pendingRequests}
-              </p>
+              <p className="text-gray-600 font-medium mb-1">Pending Requests</p>
+              <p className="text-yellow-600 text-4xl font-bold">{pendingRequests}</p>
             </div>
 
             <div className="bg-green-50 rounded-lg p-6 border border-green-200">
@@ -707,16 +687,12 @@ const Dashboard = () => {
                 <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center">
                   <FaCheckCircle className="text-green-600 text-2xl" />
                 </div>
-                <span className="text-xs font-semibold px-3 py-1 bg-green-200 text-green-700 rounded-full">
+                <span className=" font-semibold px-3 py-1 bg-green-200 text-green-700 rounded-full">
                   APPROVED
                 </span>
               </div>
-              <p className="text-gray-600 text-sm font-medium mb-1">
-                Approved Requests
-              </p>
-              <p className="text-green-600 text-4xl font-bold">
-                {approvedRequests}
-              </p>
+              <p className="text-gray-600  font-medium mb-1">Approved Requests</p>
+              <p className="text-green-600 text-4xl font-bold">{approvedRequests}</p>
             </div>
           </div>
         </div>

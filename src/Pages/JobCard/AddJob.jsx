@@ -8,7 +8,6 @@ import {
   useSearchParams,
 } from "react-router-dom";
 import moment from "moment";
-// Firestore modular imports - adjust if your project uses a different wrapper
 import {
   getFirestore,
   collection,
@@ -40,39 +39,102 @@ import { FaChevronLeft } from "react-icons/fa6";
 import BackButton from "../../Components/BackButton";
 import SuccessPopup from "../../Components/SuccessPopup";
 
-const db = getFirestore(getApp()); // assumes firebase app already initialized
+const db = getFirestore(getApp());
 
-const PrimaryInput = ({
-  type,
+// Floating Label Input Component
+const FloatingInput = ({
+  type = "text",
   value,
   onChange,
   name,
-  placeholder,
+  label,
   readOnly,
+  error,
 }) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const hasValue = value !== "" && value !== null && value !== undefined;
+
   return (
-    <input
-      type={type}
-      value={value}
-      name={name}
-      placeholder={placeholder}
-      onChange={onChange}
-      className="inputStyle"
-      readOnly={readOnly}
-    />
+    <div className="relative w-full">
+      <input
+        type={type}
+        value={value}
+        name={name}
+        onChange={onChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        readOnly={readOnly}
+        className={`inputStyle  peer  ${error ? "border-red-500" : ""} ${
+          readOnly ? "bg-gray-50 cursor-not-allowed" : ""
+        }`}
+      />
+      <label
+        className={`absolute left-3 transition-all duration-200 pointer-events-none ${
+          isFocused || hasValue
+            ? "-top-2.5 text-xs text-gray-600 font-medium bg-white px-1 py-0.5 rounded-sm "
+            : "top-1/2 -translate-y-1/2 text-gray-500"
+        }`}
+      >
+        {label}
+      </label>
+      {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
+    </div>
+  );
+};
+
+// Floating Label Select Component
+const FloatingSelect = ({
+  value,
+  onChange,
+  name,
+  label,
+  options,
+  error,
+  required = false,
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const hasValue = value !== "" && value !== null && value !== undefined;
+
+  return (
+    <div className="relative">
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className={`inputStyle peer ${error ? "border-red-500" : ""}`}
+      >
+        <option value=""></option>
+        {options.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+      <label
+        className={`absolute left-3 transition-all duration-200 pointer-events-none ${
+          isFocused || hasValue
+            ? "-top-2 text-xs text-gray-800 font-medium bg-white px-1 py-0.5 rounded-sm "
+            : "top-1/2 -translate-y-1/2 text-gray-500"
+        }`}
+      >
+        {label} {required && "*"}
+      </label>
+      {error && <p className="text-red-600 text-sm mt-1">{error}</p>}
+    </div>
   );
 };
 
 const AddJob = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // optional route param /add-job/:id
+  const { id } = useParams();
   const [searchParams] = useSearchParams();
   const isEdit = searchParams.get("edit") === "true" || !!id;
 
   // message for success/error
   const [showPopup, setShowPopup] = useState(false);
 
-  // Mirror RN state names
   const [poNo, setPoNo] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [jobCardNo, setJobCardNo] = useState("");
@@ -132,8 +194,6 @@ const AddJob = () => {
         setTeethSizeValue(data.teethSize?.value || "");
         setBlocksValue(data.blocks?.value || "");
         setWindingDirectionValue(data.windingDirection?.value || "");
-
-        // Label Type (simple string)
         setSelectedLabelType(data.jobType || "");
       });
     } catch (err) {
@@ -145,9 +205,8 @@ const AddJob = () => {
     try {
       const monthPrefix = moment().format("MMM");
       const yearSuffix = moment().format("YY");
-      const prefix = `${monthPrefix}.${yearSuffix}`; // e.g. Nov.25
+      const prefix = `${monthPrefix}.${yearSuffix}`;
 
-      // Query ordersTest where jobCardNo starts with prefix
       const q = query(
         collection(db, "ordersTest"),
         where("jobCardNo", ">=", `${prefix}-`),
@@ -352,6 +411,7 @@ const AddJob = () => {
         alert("Please select a valid Label Type (printing/plain)");
         return;
       }
+
       const orderData = {
         poNo,
         jobDate: Timestamp.fromDate(new Date(jobDate)),
@@ -404,7 +464,6 @@ const AddJob = () => {
       };
 
       if (isEdit && id) {
-        // Update existing order
         const docRef = doc(db, "ordersTest", id);
         await updateDoc(docRef, orderData);
 
@@ -417,20 +476,17 @@ const AddJob = () => {
         const materialRequestSnapshot = await getDocs(q);
 
         if (!materialRequestSnapshot.empty) {
-          // Update existing material request
           const materialDocId = materialRequestSnapshot.docs[0].id;
           await updateDoc(doc(db, "materialRequest", materialDocId), {
             ...materialRequestData,
             updatedAt: serverTimestamp(),
           });
         } else {
-          // Create new material request
           await addDoc(collection(db, "materialRequest"), materialRequestData);
         }
 
         setShowPopup(true);
       } else {
-        // Check duplicate jobCardNo
         const q = query(
           collection(db, "ordersTest"),
           where("jobCardNo", "==", jobCardNo)
@@ -466,7 +522,6 @@ const AddJob = () => {
     }
   };
 
-  // helper for controlled date input: HTML date value "YYYY-MM-DD"
   const dateInputValue = (d) => {
     try {
       const jsDate = new Date(d);
@@ -481,13 +536,11 @@ const AddJob = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Required fields
     if (!poNo.trim()) newErrors.poNo = "PO No is required";
     if (!jobName.trim()) newErrors.jobName = "Job Name is required";
     if (!jobCardNo.trim()) newErrors.jobCardNo = "Job Card No is required";
     if (!customerName.trim())
       newErrors.customerName = "Customer Name is required";
-
     if (!jobLength) newErrors.jobLength = "Job Length is required";
     if (!jobWidth) newErrors.jobWidth = "Job Width is required";
     if (!paperSize) newErrors.paperSize = "Paper Size is required";
@@ -497,7 +550,6 @@ const AddJob = () => {
     if (!aroundGap) newErrors.aroundGap = "Around Gap is required";
     if (!totalPaperRequired)
       newErrors.totalPaperRequired = "Total Paper Required is required";
-
     if (!selectedLabelType)
       newErrors.selectedLabelType = "Label Type is required";
 
@@ -517,41 +569,37 @@ const AddJob = () => {
         <div className="py-16 mt-10 space-y-10 bg-gray-100 container rounded-2xl">
           <form
             onSubmit={handleSubmit}
-            className="grid md:grid-cols-2 gap-8 w-full "
+            className="grid md:grid-cols-2 gap-8 w-full"
           >
             {/* PO No */}
-            <div>
-              <PrimaryInput
-                type="text"
-                name="poNo"
-                placeholder="PO No"
-                value={poNo}
-                onChange={(e) => {
-                  setPoNo(e.target.value);
-                  setErrors((prev) => ({ ...prev, poNo: "" }));
-                }}
-              />
-              {errors.poNo && (
-                <p className="text-red-600 text-sm">{errors.poNo}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="text"
+              name="poNo"
+              label="PO No *"
+              value={poNo}
+              onChange={(e) => {
+                setPoNo(e.target.value);
+                setErrors((prev) => ({ ...prev, poNo: "" }));
+              }}
+              error={errors.poNo}
+            />
 
             {/* Date */}
-            <PrimaryInput
-              type={"date"}
+            <FloatingInput
+              type="date"
               name="jobDate"
-              placeholder="Job Date"
+              label="Job Date"
               value={dateInputValue(jobDate)}
               onChange={(e) => setJobDate(new Date(e.target.value))}
             />
 
-            {/* ✅ Job Name with Autocomplete */}
-            <div className="relative">
-              <div className="flex items-center gap-2">
-                <PrimaryInput
+            {/* Job Name */}
+            <div className="relative w-full">
+              <div className="flex items-center gap-2 w-full">
+                <FloatingInput
                   type="text"
                   name="jobName"
-                  placeholder="Job Name"
+                  label="Job Name *"
                   value={jobName}
                   onChange={(e) => {
                     const text = e.target.value;
@@ -566,6 +614,7 @@ const AddJob = () => {
                       setShowSuggestions(false);
                     }
                   }}
+                  error={errors.jobName}
                 />
                 {selectedJob && (
                   <button
@@ -583,10 +632,6 @@ const AddJob = () => {
                   </button>
                 )}
               </div>
-              {errors.jobName && (
-                <p className="text-red-600 text-sm">{errors.jobName}</p>
-              )}
-
               {/* ✅ Autocomplete Dropdown */}
               {showSuggestions && searchResults.length > 0 && !selectedJob && (
                 <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -604,145 +649,120 @@ const AddJob = () => {
             </div>
 
             {/* Job Card No */}
-            <div>
-              <PrimaryInput
-                type={"text"}
-                name="jobCardNo"
-                placeholder="Job Card No"
-                value={jobCardNo}
-                onChange={(e) => {
-                  setJobCardNo(e.target.value);
-                  setErrors((prev) => ({ ...prev, jobCardNo: "" }));
-                }}
-                readOnly={true}
-              />
-              {errors.jobCardNo && (
-                <p className="text-red-600 text-sm">{errors.jobCardNo}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="text"
+              name="jobCardNo"
+              label="Job Card No *"
+              value={jobCardNo}
+              onChange={(e) => {
+                setJobCardNo(e.target.value);
+                setErrors((prev) => ({ ...prev, jobCardNo: "" }));
+              }}
+              error={errors.jobCardNo}
+            />
 
             {/* Customer Name */}
-            <div>
-              <PrimaryInput
-                type={"text"}
-                name="customerName"
-                placeholder="Customer Name"
-                value={customerName}
-                onChange={(e) => {
-                  setCustomerName(e.target.value);
-                  setErrors((prev) => ({ ...prev, customerName: "" }));
-                }}
-              />
-              {errors.customerName && (
-                <p className="text-red-600 text-sm">{errors.customerName}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="text"
+              name="customerName"
+              label="Customer Name *"
+              value={customerName}
+              onChange={(e) => {
+                setCustomerName(e.target.value);
+                setErrors((prev) => ({ ...prev, customerName: "" }));
+              }}
+              error={errors.customerName}
+            />
 
             {/* Job Length */}
-            <div>
-              <PrimaryInput
-                type={"number"}
-                name="jobLength"
-                placeholder="Job Length"
-                value={jobLength}
-                onChange={(e) => {
-                  setJobLength(e.target.value);
-                  setErrors((prev) => ({ ...prev, jobLength: "" }));
-                }}
-              />
-              {errors.jobLength && (
-                <p className="text-red-600 text-sm">{errors.jobLength}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="number"
+              name="jobLength"
+              label="Job Length *"
+              value={jobLength}
+              onChange={(e) => {
+                setJobLength(e.target.value);
+                setErrors((prev) => ({ ...prev, jobLength: "" }));
+              }}
+              error={errors.jobLength}
+            />
 
             {/* Job Width */}
-            <div>
-              <PrimaryInput
-                type={"number"}
-                name="jobWidth"
-                placeholder="Job Width"
-                value={jobWidth}
-                onChange={(e) => {
-                  setJobWidth(e.target.value);
-                  setErrors((prev) => ({ ...prev, jobWidth: "" }));
-                }}
-              />
-              {errors.jobWidth && (
-                <p className="text-red-600 text-sm">{errors.jobWidth}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="number"
+              name="jobWidth"
+              label="Job Width *"
+              value={jobWidth}
+              onChange={(e) => {
+                setJobWidth(e.target.value);
+                setErrors((prev) => ({ ...prev, jobWidth: "" }));
+              }}
+              error={errors.jobWidth}
+            />
 
             {/* Paper Size */}
-            <div>
-              <PrimaryInput
-                type={"number"}
-                name="paperSize"
-                placeholder="Paper Size *"
-                value={paperSize}
-                onChange={(e) => {
-                  setPaperSize(e.target.value);
-                  setErrors((prev) => ({ ...prev, paperSize: "" }));
-                }}
-              />
-              {errors.paperSize && (
-                <p className="text-red-600 text-sm">{errors.paperSize}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="number"
+              name="paperSize"
+              label="Paper Size *"
+              value={paperSize}
+              onChange={(e) => {
+                setPaperSize(e.target.value);
+                setErrors((prev) => ({ ...prev, paperSize: "" }));
+              }}
+              error={errors.paperSize}
+            />
 
             {/* Job Qty */}
-            <div>
-              <PrimaryInput
-                type={"number"}
-                name="jobQty"
-                placeholder="Job Qty"
-                value={jobQty}
-                onChange={(e) => {
-                  handleJobQtyChange(e);
-                  setErrors((prev) => ({ ...prev, jobQty: "" }));
-                }}
-              />
-              {errors.jobQty && (
-                <p className="text-red-600 text-sm">{errors.jobQty}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="number"
+              name="jobQty"
+              label="Job Qty *"
+              value={jobQty}
+              onChange={(e) => {
+                handleJobQtyChange(e);
+                setErrors((prev) => ({ ...prev, jobQty: "" }));
+              }}
+              error={errors.jobQty}
+            />
 
             {/* Job Paper / Film Material */}
-            <select
+            <FloatingSelect
               name="jobPaper"
+              label="Job Paper/Film Material"
               value={jobPaper}
               onChange={(e) => setJobPaper(e.target.value)}
-              className="inputStyle"
-            >
-              <option disabled value="" className="text-[#848282]">
-                Job Paper/Film Material:
-              </option>
-              {materialTypeList.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              options={materialTypeList}
+            />
 
             {/* Printing Plate Size */}
-            <select
+            <FloatingSelect
               name="plateSize"
+              label="Printing Plate Size"
               value={plateSize}
               onChange={(e) => setPlateSize(e.target.value)}
-              className="inputStyle"
-            >
-              <option value="">Select Printing Plate Size</option>
-              {printingPlateSize.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              options={printingPlateSize}
+            />
 
             {/* Label Size (for calculation) */}
-            <div>
-              <PrimaryInput
+            <FloatingInput
+              type="number"
+              name="calculationSize"
+              label="Label Size (for calculation) *"
+              value={calculationSize}
+              onChange={(e) => {
+                handleCalculationSizeChange(e);
+                setErrors((prev) => ({ ...prev, calculationSize: "" }));
+              }}
+              error={errors.calculationSize}
+            />
+
+            {/* Label Size (for calculation) */}
+            {/* <div>
+              <FloatingInput
                 type="number"
                 name="calculationSize"
+                label=""
                 placeholder="Label Size (for calculation)"
                 value={calculationSize}
                 onChange={(e) => {
@@ -753,161 +773,107 @@ const AddJob = () => {
               {errors.calculationSize && (
                 <p className="text-red-600 text-sm">{errors.calculationSize}</p>
               )}
-            </div>
+            </div> */}
 
             {/* Across Ups */}
-            <div>
-              <select
-                name="upsAcross"
-                value={upsAcrossValue}
-                onChange={(e) => {
-                  handleUpsAcrossChange(e);
-                  setErrors((prev) => ({ ...prev, upsAcrossValue: "" }));
-                }}
-                className="inputStyle"
-              >
-                <option value="">Select Across Ups *</option>
-                {upsAcross.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              {errors.upsAcrossValue && (
-                <p className="text-red-600 text-sm">{errors.upsAcrossValue}</p>
-              )}
-            </div>
+            <FloatingSelect
+              name="upsAcross"
+              label="Across Ups"
+              value={upsAcrossValue}
+              onChange={(e) => {
+                handleUpsAcrossChange(e);
+                setErrors((prev) => ({ ...prev, upsAcrossValue: "" }));
+              }}
+              options={upsAcross}
+              error={errors.upsAcrossValue}
+              required
+            />
 
             {/* Across Gap */}
-            <PrimaryInput
-              type={"number"}
+            <FloatingInput
+              type="number"
               name="acrossGap"
-              placeholder="Across Gap"
+              label="Across Gap"
               value={acrossGap}
               onChange={(e) => setAcrossGap(e.target.value)}
             />
 
             {/* Around */}
-            <select
+            <FloatingSelect
               name="around"
+              label="Around"
               value={aroundValue}
               onChange={(e) => setAroundValue(e.target.value)}
-              className="inputStyle"
-            >
-              <option value="">Select Around</option>
-              {around.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              options={around}
+            />
 
             {/* Around Gap */}
-            <div>
-              <PrimaryInput
-                type={"number"}
-                name="aroundGap"
-                placeholder="Around Gap *"
-                value={aroundGap}
-                onChange={(e) => {
-                  handleAroundGapChange(e);
-                  setErrors((prev) => ({ ...prev, aroundGap: "" }));
-                }}
-              />
-              {errors.aroundGap && (
-                <p className="text-red-600 text-sm">{errors.aroundGap}</p>
-              )}
-            </div>
+            <FloatingInput
+              type="number"
+              name="aroundGap"
+              label="Around Gap *"
+              value={aroundGap}
+              onChange={(e) => {
+                handleAroundGapChange(e);
+                setErrors((prev) => ({ ...prev, aroundGap: "" }));
+              }}
+              error={errors.aroundGap}
+            />
 
             {/* Total Paper Required */}
-            <div>
-              <PrimaryInput
-                type={"text"}
-                name="totalPaperRequired"
-                placeholder="Total Paper Required"
-                value={totalPaperRequired}
-                onChange={(e) => {
-                  setTotalPaperRequired(e.target.value);
-                  setErrors((prev) => ({ ...prev, totalPaperRequired: "" }));
-                }}
-                readOnly={true}
-              />
-              {errors.totalPaperRequired && (
-                <p className="text-red-600 text-sm">
-                  {errors.totalPaperRequired}
-                </p>
-              )}
-            </div>
+            <FloatingInput
+              type="text"
+              name="totalPaperRequired"
+              label="Total Paper Required"
+              value={totalPaperRequired}
+              onChange={(e) => {
+                setTotalPaperRequired(e.target.value);
+                setErrors((prev) => ({ ...prev, totalPaperRequired: "" }));
+              }}
+              readOnly={true}
+              error={errors.totalPaperRequired}
+            />
 
             {/* Teeth Size */}
-            <select
+            <FloatingSelect
               name="teethSize"
+              label="Teeth Size"
               value={teethSizeValue}
               onChange={(e) => setTeethSizeValue(e.target.value)}
-              className="inputStyle"
-            >
-              <option value="">Select Teeth Size</option>
-              {teethSize.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              options={teethSize}
+            />
 
             {/* Blocks */}
-            <select
+            <FloatingSelect
               name="blocks"
+              label="Blocks"
               value={blocksValue}
               onChange={(e) => setBlocksValue(e.target.value)}
-              className="inputStyle"
-            >
-              <option value="">Select Blocks</option>
-              {blocks.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              options={blocks}
+            />
 
             {/* Winding Direction */}
-            <select
+            <FloatingSelect
               name="windingDirection"
+              label="Winding Direction"
               value={windingDirectionValue}
               onChange={(e) => setWindingDirectionValue(e.target.value)}
-              className="inputStyle"
-            >
-              <option value="">Select Winding Direction</option>
-              {windingDirection.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
+              options={windingDirection}
+            />
 
             {/* Label Type */}
-            <div>
-              <select
-                name="labelType"
-                value={selectedLabelType}
-                onChange={(e) => {
-                  setSelectedLabelType(e.target.value);
-                  setErrors((prev) => ({ ...prev, selectedLabelType: "" }));
-                }}
-                className="inputStyle"
-              >
-                <option value="">Select Label type</option>
-                {labelType.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-              {errors.selectedLabelType && (
-                <p className="text-red-600 text-sm">
-                  {errors.selectedLabelType}
-                </p>
-              )}
-            </div>
+            <FloatingSelect
+              name="labelType"
+              label="Label Type"
+              value={selectedLabelType}
+              onChange={(e) => {
+                setSelectedLabelType(e.target.value);
+                setErrors((prev) => ({ ...prev, selectedLabelType: "" }));
+              }}
+              options={labelType}
+              error={errors.selectedLabelType}
+              required
+            />
           </form>
 
           <PrimaryBtn
