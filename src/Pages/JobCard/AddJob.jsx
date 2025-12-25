@@ -34,6 +34,8 @@ import {
 } from "../../utils/constant";
 import { startTransition } from "react";
 import PrimaryBtn from "../../Components/PrimaryBtn";
+import PrimaryBackBtn from "../../Components/PrimaryBtn";
+import { FaChevronLeft } from "react-icons/fa6";
 import BackButton from "../../Components/BackButton";
 import SuccessPopup from "../../Components/SuccessPopup";
 
@@ -130,6 +132,7 @@ const AddJob = () => {
   const [searchParams] = useSearchParams();
   const isEdit = searchParams.get("edit") === "true" || !!id;
 
+  // message for success/error
   const [showPopup, setShowPopup] = useState(false);
 
   const [poNo, setPoNo] = useState("");
@@ -139,7 +142,7 @@ const AddJob = () => {
   const [jobDate, setJobDate] = useState(() => new Date());
   const [jobLength, setJobLength] = useState("");
   const [jobWidth, setJobWidth] = useState("");
-  const [paperSize, setPaperSize] = useState(""); // ✅ NEW FIELD
+  const [paperSize, setPaperSize] = useState("");
   const [totalPaperRequired, setTotalPaperRequired] = useState("");
   const [jobQty, setJobQty] = useState("");
   const [jobPaper, setJobPaper] = useState("");
@@ -156,6 +159,11 @@ const AddJob = () => {
   const [errors, setErrors] = useState({});
   const [calculationSize, setCalculationSize] = useState("");
 
+  // ✅ NEW: Autocomplete states
+  const [searchResults, setSearchResults] = useState([]);
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const fetchOrderDetails = useCallback(async (docId) => {
     try {
       const snap = await getDoc(doc(db, "ordersTest", docId));
@@ -170,7 +178,7 @@ const AddJob = () => {
         setJobDate(data.jobDate ? data.jobDate.toDate() : new Date());
         setJobLength(data.jobLength || "");
         setJobWidth(data.jobWidth || "");
-        setPaperSize(data.paperSize || ""); // ✅ NEW FIELD
+        setPaperSize(data.paperSize || "");
         setTotalPaperRequired(data.totalPaperRequired || "");
         setJobQty(data.jobQty || "");
         setAcrossGap(data.acrossGap || "");
@@ -178,6 +186,7 @@ const AddJob = () => {
         setAccept(data.accept || false);
         setCalculationSize(data.calculationSize || "");
 
+        // Extract `.value` from objects
         setJobPaper(data.jobPaper?.value || "");
         setPlateSize(data.printingPlateSize?.value || "");
         setUpsAcrossValue(data.upsAcross?.value || "");
@@ -227,6 +236,91 @@ const AddJob = () => {
     }
   }, []);
 
+  // ✅ NEW: Search job names function
+  const searchJobNames = useCallback(async (text) => {
+    if (!text || text.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      // Get all documents and filter client-side for case-insensitive search
+      // Note: For large datasets, consider using Algolia or creating a searchable field
+      const snapshot = await getDocs(collection(db, "ordersTest"));
+
+      const results = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter(
+          (doc) =>
+            doc.jobName &&
+            doc.jobName.toLowerCase().includes(text.toLowerCase())
+        )
+        .slice(0, 10);
+
+      setSearchResults(results);
+      setShowSuggestions(true);
+    } catch (error) {
+      console.error("Error searching job names:", error);
+    }
+  }, []);
+
+  // ✅ NEW: Handle job selection from autocomplete
+  const handleSelectJob = useCallback((item) => {
+    setSelectedJob(item);
+    setJobName(item.jobName);
+    setSearchResults([]);
+    setShowSuggestions(false);
+
+    // Auto-fill other fields (except jobCardNo)
+    startTransition(() => {
+      setPoNo(item.poNo || "");
+      setCustomerName(item.customerName || "");
+      setJobLength(item.jobLength || "");
+      setJobWidth(item.jobWidth || "");
+      setPaperSize(item.paperSize || "");
+      setJobQty(item.jobQty || "");
+      setCalculationSize(item.calculationSize || "");
+      setTotalPaperRequired(item.totalPaperRequired || "");
+      setAcrossGap(item.acrossGap || "");
+      setAroundGap(item.aroundGap || "");
+      setAccept(item.accept || false);
+
+      // Extract values from objects
+      setJobPaper(item.jobPaper?.value || "");
+      setPlateSize(item.printingPlateSize?.value || "");
+      setUpsAcrossValue(item.upsAcross?.value || "");
+      setAroundValue(item.around?.value || "");
+      setTeethSizeValue(item.teethSize?.value || "");
+      setBlocksValue(item.blocks?.value || "");
+      setWindingDirectionValue(item.windingDirection?.value || "");
+      setSelectedLabelType(item.jobType || "");
+    });
+  }, []);
+
+  // ✅ NEW: Clear auto-filled data
+  const clearAutoFilledData = useCallback(() => {
+    startTransition(() => {
+      setCustomerName("");
+      setJobLength("");
+      setJobWidth("");
+      setPaperSize("");
+      setJobQty("");
+      setCalculationSize("");
+      setTotalPaperRequired("");
+      setAcrossGap("");
+      setAroundGap("");
+      setJobPaper("");
+      setPlateSize("");
+      setUpsAcrossValue("");
+      setAroundValue("");
+      setTeethSizeValue("");
+      setBlocksValue("");
+      setWindingDirectionValue("");
+      setSelectedLabelType("");
+      setPoNo("");
+    });
+  }, []);
+
   useEffect(() => {
     console.log(isEdit);
     console.log(id);
@@ -246,7 +340,7 @@ const AddJob = () => {
     run();
   }, [isEdit, id]);
 
-  // ✅ UPDATED FORMULA: totalPaperRequired = ((labelSize + aroundGap)*totalLabels)/(1000*across)
+  // Calculate total paper required
   const calculateTotalPaper = useCallback((qty, size, ups, gap) => {
     const totalLabels = parseFloat(qty);
     const labelSize = parseFloat(size);
@@ -283,7 +377,6 @@ const AddJob = () => {
     calculateTotalPaper(jobQty, calculationSize, value, aroundGap);
   };
 
-  // ✅ NEW HANDLER for aroundGap
   const handleAroundGapChange = (e) => {
     const value = e.target.value;
     setAroundGap(value);
@@ -325,15 +418,16 @@ const AddJob = () => {
         customerName,
         jobCardNo,
         jobName,
-        // jobSize,
         jobLength,
         jobWidth,
-        paperSize, // ✅ NEW FIELD
+        paperSize,
         jobQty,
         calculationSize,
         totalPaperRequired,
         jobType: selectedLabelType,
         assignedTo: assignedUserUID,
+
+        // Convert SELECT VALUE → { label, value }
         jobPaper: findOption(materialTypeList, jobPaper),
         printingPlateSize: findOption(printingPlateSize, plateSize),
         upsAcross: findOption(upsAcross, upsAcrossValue),
@@ -341,6 +435,7 @@ const AddJob = () => {
         teethSize: findOption(teethSize, teethSizeValue),
         blocks: findOption(blocks, blocksValue),
         windingDirection: findOption(windingDirection, windingDirectionValue),
+
         accept,
         acrossGap,
         aroundGap,
@@ -349,12 +444,13 @@ const AddJob = () => {
         updatedAt: serverTimestamp(),
       };
 
+      // Material Request Data
       const materialRequestData = {
         jobCardNo,
         jobName,
         jobLength,
         jobWidth,
-        paperSize, // ✅ NEW FIELD
+        paperSize,
         jobPaper: findOption(materialTypeList, jobPaper),
         jobQty,
         calculationSize,
@@ -371,6 +467,7 @@ const AddJob = () => {
         const docRef = doc(db, "ordersTest", id);
         await updateDoc(docRef, orderData);
 
+        // Update or create material request
         const q = query(
           collection(db, "materialRequest"),
           where("jobCardNo", "==", jobCardNo),
@@ -400,6 +497,7 @@ const AddJob = () => {
           return;
         }
 
+        // Create new order and get reference
         const orderRef = await addDoc(collection(db, "ordersTest"), {
           ...orderData,
           jobStatus,
@@ -407,6 +505,7 @@ const AddJob = () => {
           createdBy: "Admin",
         });
 
+        // Add material request with orderId
         await addDoc(collection(db, "materialRequest"), {
           ...materialRequestData,
           orderId: orderRef.id,
@@ -444,11 +543,11 @@ const AddJob = () => {
       newErrors.customerName = "Customer Name is required";
     if (!jobLength) newErrors.jobLength = "Job Length is required";
     if (!jobWidth) newErrors.jobWidth = "Job Width is required";
-    if (!paperSize) newErrors.paperSize = "Paper Size is required"; // ✅ NEW VALIDATION
+    if (!paperSize) newErrors.paperSize = "Paper Size is required";
     if (!jobQty) newErrors.jobQty = "Job Quantity is required";
     if (!calculationSize) newErrors.calculationSize = "Label size is required";
     if (!upsAcrossValue) newErrors.upsAcrossValue = "Across Ups is required";
-    if (!aroundGap) newErrors.aroundGap = "Around Gap is required"; // ✅ NEW VALIDATION
+    if (!aroundGap) newErrors.aroundGap = "Around Gap is required";
     if (!totalPaperRequired)
       newErrors.totalPaperRequired = "Total Paper Required is required";
     if (!selectedLabelType)
