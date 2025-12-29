@@ -402,10 +402,12 @@ const AddJob = () => {
       let jobStatus;
 
       if (normalizedLabelType === "printing") {
-        assignedUserUID = "uqTgURHeSvONdbFs154NfPYND1f2";
+        // assignedUserUID = "uqTgURHeSvONdbFs154NfPYND1f2";
+        assignedUserUID = 'fb0x3V2nmJScoe314je4lUHCySi2';
         jobStatus = "Printing";
       } else if (normalizedLabelType === "plain") {
-        assignedUserUID = "Kt1bJQzaUPdAowP7bTpdNQEfXKO2";
+        // assignedUserUID = "Kt1bJQzaUPdAowP7bTpdNQEfXKO2";
+        assignedUserUID = 'bOXXD73udtPRlOiVujoCChKL4bx2';
         jobStatus = "Punching";
       } else {
         alert("Please select a valid Label Type (printing/plain)");
