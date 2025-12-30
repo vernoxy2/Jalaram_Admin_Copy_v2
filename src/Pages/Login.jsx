@@ -181,10 +181,10 @@ const Login = () => {
         <div className="lg:w-5/12 w-full lg:bg-gradient-to-b from-[#102F5C] to-[#3566AD] flex justify-center items-start py-16 px-6">
           <div className="space-y-5 w-full max-w-sm text-center lg:text-left">
             <div className="flex flex-col items-center justify-center w-fit gap-3">
-              <img src={Logow} alt="Logo" className="w-32 hidden lg:block" />
+              {/* <img src={Logow} alt="Logo" className="w-32 hidden lg:block" />
               <p className="text-[#3668B1] lg:text-white uppercase font-bold tracking-wide text-lg">
                 Shri jalaram labels
-              </p>
+              </p> */}
             </div>
             
             <h1 className="text-[#3668B1] lg:text-white font-medium text-3xl leading-snug pt-8">
@@ -260,10 +260,10 @@ const Login = () => {
       <div className="lg:w-5/12 w-full lg:bg-gradient-to-b from-[#102F5C] to-[#3566AD] flex justify-center items-start py-16 px-6">
         <div className="space-y-5 w-full max-w-sm text-center lg:text-left">
           <div className="flex flex-col items-center justify-center w-fit gap-3">
-            <img src={Logow} alt="Logo" className="w-32 hidden lg:block" />
+            {/* <img src={Logow} alt="Logo" className="w-32 hidden lg:block" />
             <p className="text-[#3668B1] lg:text-white uppercase font-bold tracking-wide text-lg">
               Shri jalaram labels
-            </p>
+            </p> */}
           </div>
           
           <h1 className="text-[#3668B1] lg:text-white font-medium text-3xl leading-snug pt-8">
