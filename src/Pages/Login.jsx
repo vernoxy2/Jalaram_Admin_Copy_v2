@@ -159,7 +159,7 @@ const Login = () => {
       console.error("❌ Password Reset Error:", error);
       
       if (error.code === "auth/user-not-found") {
-        setResetError("Invalid email ID. This email is not registered in our system.");
+        setResetError("Invalid email ID. This email is not registered.");
       } else if (error.code === "auth/invalid-email") {
         setResetError("Invalid email address format");
       } else if (error.code === "auth/too-many-requests") {
