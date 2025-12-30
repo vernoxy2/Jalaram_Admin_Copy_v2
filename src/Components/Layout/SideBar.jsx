@@ -44,7 +44,8 @@ const Sidebar = ({ mobileOpen, setMobileOpen }) => {
           ${isOpen ? "opacity-100 " : "opacity-0 "}
         `}
             >
-              Shree Jalaram
+              {/* Shree Jalaram */}
+              Welcome Admin
             </h1>
           </Link>
 
