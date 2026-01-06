@@ -7,6 +7,7 @@ import Addbtn from "../../Components/Addbtn";
 import { FiSearch } from "react-icons/fi";
 import { RiPencilFill } from "react-icons/ri";
 import { FaSortAmountDown, FaSortAmountUp } from "react-icons/fa";
+import { materialTypeList } from "../../utils/constant";
 
 const MaterialList = () => {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ const MaterialList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [dateError, setDateError] = useState("");
+  const [materialTypeFilter, setMaterialTypeFilter] = useState(""); // Add this
 
   // ✅ Helper function to safely extract string value from object or string
   const getDisplayValue = (value) => {
@@ -63,6 +65,7 @@ const MaterialList = () => {
     setSortOrder("desc");
     setCurrentPage(1);
     setDateError("");
+    setMaterialTypeFilter("");
   };
 
   // Filter materials based on active tab
@@ -95,6 +98,7 @@ const MaterialList = () => {
         item.paperProductCode
       ).toLowerCase();
       const jobPaperStr = getDisplayValue(item.jobPaper).toLowerCase();
+      const paperSizeStr = getDisplayValue(item.paperSize).toLowerCase();
 
       // Search filter
       const matchesSearch =
@@ -102,13 +106,22 @@ const MaterialList = () => {
         paperProductCodeStr.includes(s) ||
         jobPaperStr.includes(s) ||
         item.totalRunningMeter?.toString().includes(s) ||
-        formattedDate.includes(s);
+        formattedDate.includes(s) ||
+        paperSizeStr.includes(s);
 
       if (!matchesSearch) return false;
 
       // Date range filter
       if (fromDate && formattedDate < fromDate) return false;
       if (toDate && formattedDate > toDate) return false;
+
+      // ✅ ADD Material Type Filter (works for both tabs)
+      if (materialTypeFilter) {
+        const itemMaterialType = getDisplayValue(item.jobPaper);
+        if (itemMaterialType !== materialTypeFilter) {
+          return false;
+        }
+      }
 
       // Category filter (only for created tab)
       if (
@@ -191,7 +204,7 @@ const MaterialList = () => {
       <div className="relative">
         <input
           type="text"
-          placeholder="Search by Paper Code, Company, Material Type..."
+          placeholder="Search by Paper Code, Company, Material Type, Paper Size..."
           className="border border-black/20 rounded-3xl w-full p-3 pr-10 text-sm"
           value={search}
           onChange={(e) => {
@@ -242,6 +255,27 @@ const MaterialList = () => {
             }}
             className="border border-black/20 rounded-2xl p-3 w-full"
           />
+        </div>
+        {/* ✅ ADD Material Type Filter - Works for BOTH tabs */}
+        <div className="flex-1 min-w-[200px]">
+          <label className="block mb-2 font-medium text-base">
+            Material Type
+          </label>
+          <select
+            value={materialTypeFilter}
+            onChange={(e) => {
+              setMaterialTypeFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="border border-black/20 rounded-2xl p-3 w-full"
+          >
+            <option value="">All Material Types</option>
+            {materialTypeList.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Material Category - Only for Created Tab */}
@@ -319,6 +353,9 @@ const MaterialList = () => {
               <th className="px-2 md:px-4 py-2 border-r-2 whitespace-nowrap">
                 Material Type
               </th>
+              <th className="px-2 md:px-4 py-2 border-r-2 whitespace-nowrap">
+                Paper Size
+              </th>
               {activeTab === "created" && (
                 <>
                   <th className="px-4 py-2 border-r-2 whitespace-nowrap">
@@ -365,6 +402,9 @@ const MaterialList = () => {
                 </td>
                 <td className="border px-2 md:px-4 py-2">
                   {getDisplayValue(item.jobPaper)}
+                </td>
+                <td className="border px-2 md:px-4 py-2">
+                  {getDisplayValue(item.paperSize)}
                 </td>
                 {activeTab === "created" && (
                   <>

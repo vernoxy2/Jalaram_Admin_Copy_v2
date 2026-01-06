@@ -341,20 +341,20 @@ const AddJob = () => {
   }, [isEdit, id]);
 
   // Calculate total paper required
-  const calculateTotalPaper = useCallback((qty, size, ups, gap) => {
+  const calculateTotalPaper = useCallback((qty, size, ups, aroundUp) => {
     const totalLabels = parseFloat(qty);
     const labelSize = parseFloat(size);
     const across = parseFloat(ups);
-    const aroundGapValue = parseFloat(gap);
+    const aroundUpValue = parseFloat(aroundUp);
 
     if (
       !isNaN(totalLabels) &&
       !isNaN(labelSize) &&
       !isNaN(across) &&
-      !isNaN(aroundGapValue)
+      !isNaN(aroundUpValue)
     ) {
       const total =
-        ((labelSize + aroundGapValue) * totalLabels) / (1000 * across);
+        ((labelSize + aroundUpValue) * totalLabels) / (1000 * across);
       setTotalPaperRequired(total.toFixed(2));
     }
   }, []);
@@ -362,24 +362,24 @@ const AddJob = () => {
   const handleJobQtyChange = (e) => {
     const value = e.target.value;
     setJobQty(value);
-    calculateTotalPaper(value, calculationSize, upsAcrossValue, aroundGap);
+    calculateTotalPaper(value, calculationSize, upsAcrossValue, aroundValue);
   };
 
   const handleCalculationSizeChange = (e) => {
     const value = e.target.value;
     setCalculationSize(value);
-    calculateTotalPaper(jobQty, value, upsAcrossValue, aroundGap);
+    calculateTotalPaper(jobQty, value, upsAcrossValue, aroundValue);
   };
 
   const handleUpsAcrossChange = (e) => {
     const value = e.target.value;
     setUpsAcrossValue(value);
-    calculateTotalPaper(jobQty, calculationSize, value, aroundGap);
+    calculateTotalPaper(jobQty, calculationSize, value, aroundValue);
   };
 
-  const handleAroundGapChange = (e) => {
+  const handleAroundUpChange = (e) => {
     const value = e.target.value;
-    setAroundGap(value);
+    setAroundValue(value);
     calculateTotalPaper(jobQty, calculationSize, upsAcrossValue, value);
   };
 
@@ -403,11 +403,11 @@ const AddJob = () => {
 
       if (normalizedLabelType === "printing") {
         // assignedUserUID = "uqTgURHeSvONdbFs154NfPYND1f2";
-        assignedUserUID = 'fb0x3V2nmJScoe314je4lUHCySi2';
+        assignedUserUID = "fb0x3V2nmJScoe314je4lUHCySi2";
         jobStatus = "Printing";
       } else if (normalizedLabelType === "plain") {
         // assignedUserUID = "Kt1bJQzaUPdAowP7bTpdNQEfXKO2";
-        assignedUserUID = 'bOXXD73udtPRlOiVujoCChKL4bx2';
+        assignedUserUID = "bOXXD73udtPRlOiVujoCChKL4bx2";
         jobStatus = "Punching";
       } else {
         alert("Please select a valid Label Type (printing/plain)");
@@ -549,7 +549,8 @@ const AddJob = () => {
     if (!jobQty) newErrors.jobQty = "Job Quantity is required";
     if (!calculationSize) newErrors.calculationSize = "Label size is required";
     if (!upsAcrossValue) newErrors.upsAcrossValue = "Across Ups is required";
-    if (!aroundGap) newErrors.aroundGap = "Around Gap is required";
+    if (!aroundValue) newErrors.aroundValue = "Around is required";
+    // if (!aroundGap) newErrors.aroundGap = "Around Gap is required";
     if (!totalPaperRequired)
       newErrors.totalPaperRequired = "Total Paper Required is required";
     if (!selectedLabelType)
@@ -803,25 +804,27 @@ const AddJob = () => {
             {/* Around */}
             <FloatingSelect
               name="around"
-              label="Around"
+              label="Around *"
               value={aroundValue}
-              onChange={(e) => setAroundValue(e.target.value)}
+              onChange={(e) => {
+                handleAroundUpChange(e);
+                setErrors((prev) => ({ ...prev, aroundValue: "" }));
+              }}
               options={around}
+              error={errors.aroundValue}         
             />
 
             {/* Around Gap */}
             <FloatingInput
               type="number"
               name="aroundGap"
-              label="Around Gap *"
+              label="Around Gap"
               value={aroundGap}
               onChange={(e) => {
-                handleAroundGapChange(e);
-                setErrors((prev) => ({ ...prev, aroundGap: "" }));
-              }}
-              error={errors.aroundGap}
+                const value = e.target.value;
+                setAroundGap(value);                
+              }}            
             />
-
             {/* Total Paper Required */}
             <FloatingInput
               type="text"

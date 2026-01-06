@@ -128,10 +128,15 @@ const JobDetailsScreen = () => {
     return `${hours}h ${minutes}m ${seconds}s`;
   };
 
-
   // Updated generateHTMLContent function with modified material usage display
 
   const generateHTMLContent = () => {
+    // Calculate slitting grand total
+    const slittingGrandTotal =
+      order.slittingData && order.slittingData.length > 0
+        ? order.slittingData.reduce((sum, item) => sum + (parseFloat(item.C) || 0), 0)
+        : 0;
+
     const slittingRows =
       order.slittingData && order.slittingData.length > 0
         ? order.slittingData
@@ -143,12 +148,14 @@ const JobDetailsScreen = () => {
         <td>${item.C || ""}</td>
       </tr>`
             )
-            .join("")
+            .join("") +
+          `
+      <tr style="font-weight: bold; background-color: #f0f0f0;">
+        <td colspan="2" style="text-align: right;">Grand Total:</td>
+        <td>${slittingGrandTotal}</td>
+      </tr>`
         : `<tr><td colspan="3">No data available</td></tr>`;
-
-    // ✅ REMOVED: allocatedMaterialsHTML - No longer displayed above the table
-
-    // ✅ UPDATED: Generate material usage table with allocatedQty and materialCategory
+    
     const generateStageUsageTable = (stageName) => {
       if (
         !order.materialUsageTracking ||
@@ -516,8 +523,16 @@ const JobDetailsScreen = () => {
           </tr>
         </table>
 
-      <div class="row">
-             <div class="col">
+         <div class="row">
+                <div class="col"><span class="label">Running Mtrs:</span> <span class="input">${
+                  order.runningMtr || ""
+                }</span></div>
+                <div class="col"><span class="label">Tooling:</span> <span class="input">${
+                  order.tooling || ""
+                }</span></div>
+          </div>
+            <div class="row">
+          <div class="col">
             <span class="label">Printing Colors:</span>
             <span class="input">
               ${
@@ -527,10 +542,8 @@ const JobDetailsScreen = () => {
               }
             </span>
           </div>
-            <div class="col"><span class="label">Tooling:</span> <span class="input">${
-              order.tooling || ""
-            }</span></div>
-      </div>   
+          
+      </div>  
 
      ${generateStageUsageTable("printing")}
     </div>
@@ -547,10 +560,7 @@ const JobDetailsScreen = () => {
           punchingEndTimeFormatted || ""
         }</span></div>
       </div>
-      <div class="row">
-        <div class="col"><span class="label">Paper Code:</span> <span class="input">${
-          order.paperCode || ""
-        }</span></div>
+      <div class="row">       
         <div class="col"><span class="label">Running Mtrs:</span> <span class="input">
         </span></div>
       </div>
