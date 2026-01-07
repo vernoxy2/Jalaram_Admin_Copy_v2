@@ -134,7 +134,10 @@ const JobDetailsScreen = () => {
     // Calculate slitting grand total
     const slittingGrandTotal =
       order.slittingData && order.slittingData.length > 0
-        ? order.slittingData.reduce((sum, item) => sum + (parseFloat(item.C) || 0), 0)
+        ? order.slittingData.reduce(
+            (sum, item) => sum + (parseFloat(item.C) || 0),
+            0
+          )
         : 0;
 
     const slittingRows =
@@ -155,7 +158,7 @@ const JobDetailsScreen = () => {
         <td>${slittingGrandTotal}</td>
       </tr>`
         : `<tr><td colspan="3">No data available</td></tr>`;
-    
+
     const generateStageUsageTable = (stageName) => {
       if (
         !order.materialUsageTracking ||
@@ -262,17 +265,17 @@ const JobDetailsScreen = () => {
         margin-top: 20px;
       }
       
-      .section-title { 
-        background: #3668B1; 
-        color: #fff; 
-        font-weight: bold; 
-        padding: 6px 14px; 
-        border-radius: 5px; 
-        display: inline-block; 
-        margin-bottom: 12px;
-        font-size: 14px;
-      }
-      
+        .section-title { 
+      background: #3668B1; 
+      color: #fff; 
+      font-weight: bold; 
+      padding: 6px 14px; 
+      border-radius: 5px; 
+      display: inline-block; 
+      text-align: center;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
       .row { 
         display: flex; 
         flex-wrap: wrap; 
@@ -283,6 +286,7 @@ const JobDetailsScreen = () => {
         flex: 1; 
         min-width: 180px; 
         margin-right: 10px; 
+        white-space: nowrap;
       }
       
       .label { 
@@ -476,9 +480,7 @@ const JobDetailsScreen = () => {
             }</span></div>
       </div>
       <div class="row">
-          <div class="col"><span class="label">Job Original Size:</span> <span class="input">${
-            order.jobSize || ""
-          }</span></div>
+          <div class="col"><span class="label">Job Original Size:</span> <span class="input">${`${order.jobLength} * ${order.jobWidth}`}</span></div>
           <div class="col"><span class="label">Job Qty:</span> <span class="input">${
             order.jobQty || ""
           }</span></div>
@@ -532,17 +534,19 @@ const JobDetailsScreen = () => {
                 }</span></div>
           </div>
             <div class="row">
-          <div class="col">
-            <span class="label">Printing Colors:</span>
-            <span class="input">
-              ${
-                order.printingColors && order.printingColors.length > 0
-                  ? order.printingColors.join(", ")
-                  : ""
-              }
-            </span>
-          </div>
-          
+              <div class="col">
+                <span class="label">Printing Colors:</span>
+                <span class="input">
+                  ${
+                    order.printingColors && order.printingColors.length > 0
+                      ? order.printingColors.join(", ")
+                      : ""
+                  }
+                </span>
+              </div>
+            <div class="col"><span class="label">Actual Required Material :</span> <span class="input">${
+              order.totalPaperRequired || ""
+            }m</span></div>
       </div>  
 
      ${generateStageUsageTable("printing")}
@@ -562,6 +566,7 @@ const JobDetailsScreen = () => {
       </div>
       <div class="row">       
         <div class="col"><span class="label">Running Mtrs:</span> <span class="input">
+        ${order.runningMtr || ""}
         </span></div>
       </div>
 
